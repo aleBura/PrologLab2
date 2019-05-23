@@ -43,16 +43,18 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
 hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((Dir, Dist), PosicionesConFichas).
 
 % pertenece(?X,?L) ← X pertenece a la lista L
-pertenece((X,Y),[(X,Y)|_]).
-pertenece((X,Y),[_|Ys]) :- pertenece((X,Y),Ys).
+pertenece((X,Y,Z),[(X,Y,Z)|_]).
+pertenece((X,Y,Z),[_|Ys]) :- pertenece((X,Y,Z),Ys).
 
 % largo(+L,?N) ← N es el largo de la lista L.
 largo([],0).
 largo([_|Xs],N):- largo(Xs,M),
                   N is M+1.
+                  
+hayMolino(Dir,Dist,Turno,PosicionesConFichas)
 
 evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, PosicionesConFichas) :-
-    ( hayFicha(Dir,Dist,PosicionesConFichas) ->
+    hayFicha(Dir,Dist,PosicionesConFichas) ->
         ( gr_mensaje(Visual,'La posición no está vacía, no puede colocar una ficha ahí.'),
           loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
         );
@@ -61,12 +63,20 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
         ) ->
         (
           gr_ficha(Visual,T,Dir,Dist,Turno),
+
+          % En este punto ya puso la ficha, ahora hay que chequear si hay molino o no
+          % Le paso la posicion nueva porque solo considero molinos que incluyan esa posicion
+          % Si se generan 2 molinos a la vez solo se saca una ficha.
+
+          (hayMolino(Dir,Dist,Turno,PosicionesConFichas) ->
+             % Click en la ficha que quiere sacar
+             eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas)),
+          
           contrincante(Turno,SiguienteTurno),
-          loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Dir,Dist)|PosicionesConFichas])
+          loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Dir,Dist,Turno)|PosicionesConFichas])
         );
           gr_mensaje(Visual,'Finalizo la fase colocar, se alcanzó el máximo de fichas para este tablero.'),
           true.
-    ).
     
 evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
     (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
