@@ -38,9 +38,9 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
     evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas).
     
 % TODO fase MOVER
-% por ahora solo concidero que es  humano vs humano
+% por ahora solo considero que es  humano vs humano
 
-hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((Dir, Dist), PosicionesConFichas).
+hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((Dir, Dist, _), PosicionesConFichas).
 
 % pertenece(?X,?L) ← X pertenece a la lista L
 pertenece((X,Y,Z),[(X,Y,Z)|_]).
@@ -50,8 +50,149 @@ pertenece((X,Y,Z),[_|Ys]) :- pertenece((X,Y,Z),Ys).
 largo([],0).
 largo([_|Xs],N):- largo(Xs,M),
                   N is M+1.
-                  
-%hayMolino(Dir,Dist,Turno,PosicionesConFichas) :-
+
+%%%%%% Predicados de navegacion por el tablero %%%%%%%
+
+%La segunda poscicion esta a la izquierda de la primera
+izquierda(s,sw).
+izquierda(se,s).
+izquierda(n,nw).
+izquierda(ne,n).
+
+dobleIzquierda(ne,nw).
+dobleIzquierda(se,sw).
+
+%La segunda posicion esta a la derecha de la primera
+derecha(n,ne).
+derecha(nw,n).
+derecha(s,se).
+derecha(sw,n).
+
+dobleDerecha(nw,ne).
+dobleDerecha(sw,se).
+
+%La segunda posicion esta arriba de la primera
+arriba(sw,w).
+arriba(w,nw).
+arriba(se,e).
+arriba(e,ne).
+
+dobleArriba(sw,nw).
+dobleArriba(se,ne).
+
+%La segunda posicion esta abajo de la primera
+abajo(nw,w).
+abajo(w,sw).
+abajo(ne,e).
+abajo(e,se).
+
+dobleAbajo(nw,sw).
+dobleAbajo(ne,se).
+
+medio(s).
+medio(n).
+medio(w).
+medio(e).
+
+% El concepto de arriba, abajo, izquierda y derecha
+% en las filas y columnas del medio es por la distancia
+% ademas pueden ser de largo variable
+
+masUno(Dist,M,T) :- M is Dist+1, M =< T.
+masDos(Dist,M,T) :- M is Dist+2, M =< T.
+menosUno(Dist,M) :- M is Dist-1, 1 =< M.
+menosDos(Dist,M) :- M is Dist-2, 1 =< M.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Predicados para ver si hay molino %%%%
+
+hayMolino(Dir,Dist,Turno,PosicionesConFichas,T) :- hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas);
+                                                   hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas);
+                                                   hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T).
+                                                   
+hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas):-
+                                                          %La posicion que agruegé puede estar al medio, a la izquierda o a la derecha.
+                                                          %Primer caso al medio
+                                                          ((
+                                                           izquierda(Dir,I),
+                                                           derecha(Dir,D),
+                                                           pertenece((I,Dist,Turno2),PosicionesConFichas),
+                                                           pertenece((D,Dist,Turno3),PosicionesConFichas)
+                                                          );
+                                                          %Segundo caso a la izquierda
+                                                          (
+                                                           derecha(Dir,D),
+                                                           dobleDerecha(Dir,DobleD),
+                                                           pertenece((D,Dist,Turno2),PosicionesConFichas),
+                                                           pertenece((DobleD,Dist,Turno3),PosicionesConFichas)
+                                                          );
+                                                          %Tercer caso a la derecha
+                                                          (
+                                                           izquierda(Dir,I),
+                                                           dobleIzquierda(Dir,DobleI),
+                                                           pertenece((I,Dist,Turno2),PosicionesConFichas),
+                                                           pertenece((DobleI,Dist,Turno3),PosicionesConFichas)
+                                                          )),
+                                                          mismoJugador(Turno, Turno2, Turno3).
+                                                           
+hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas):-
+                                                          %La posicion que agruegé puede estar al medio, arriba o abajo.
+                                                          %Primer caso al medio
+                                                          ((
+                                                           arriba(Dir,Ar),
+                                                           abajo(Dir,Ab),
+                                                           pertenece((Ar,Dist,Turno2),PosicionesConFichas),
+                                                           pertenece((Ab,Dist,Turno3),PosicionesConFichas)
+                                                          );
+                                                          %Segundo caso arriba
+                                                          (
+                                                           abajo(Dir,Ab),
+                                                           dobleAbajo(Dir,DobleAb),
+                                                           pertenece((Ab,Dist,Turno2),PosicionesConFichas),
+                                                           pertenece((DobleAb,Dist,Turno3),PosicionesConFichas)
+                                                          );
+                                                          %Tercer caso abajo
+                                                          (
+                                                           arriba(Dir,Ar),
+                                                           dobleArriba(Dir,DobleAr),
+                                                           pertenece((Ar,Dist,Turno2),PosicionesConFichas),
+                                                           pertenece((DobleAr,Dist,Turno3),PosicionesConFichas)
+                                                          )),
+                                                          mismoJugador(Turno, Turno2, Turno3).
+
+
+hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T):-
+                                                        %La posicion que agruegé puede estar al medio, arriba o abajo.
+                                                        %Primer caso al medio
+                                                        ((
+                                                         masUno(Dist,Ar,T),
+                                                         menosUno(Dist,Ab),
+                                                         pertenece((Dir,Ar,Turno2),PosicionesConFichas),
+                                                         pertenece((Dir,Ab,Turno3),PosicionesConFichas)
+                                                        );
+                                                        %Segundo caso arriba
+                                                        (
+                                                         menosUno(Dist,Ab),
+                                                         menosDos(Dist,DobleAb),
+                                                         pertenece((Dir,Ab,Turno2),PosicionesConFichas),
+                                                         pertenece((Dir,DobleAb,Turno3),PosicionesConFichas)
+                                                        );
+                                                        %Tercer caso abajo
+                                                        (
+                                                         masUno(Dist,Ar,T),
+                                                         masDos(Dist,DobleAr,T),
+                                                         pertenece((Dir,Ar,Turno2),PosicionesConFichas),
+                                                         pertenece((Dir,DobleAr,Turno3),PosicionesConFichas)
+                                                        )),
+                                                        mismoJugador(Turno, Turno2, Turno3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mismoJugador(blanco,blanco,blanco).
+mismoJugador(negro,negro,negro).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, PosicionesConFichas) :-
     hayFicha(Dir,Dist,PosicionesConFichas) ->
@@ -68,12 +209,13 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
           % Le paso la posicion nueva porque solo considero molinos que incluyan esa posicion
           % Si se generan 2 molinos a la vez solo se saca una ficha.
 
-          %(hayMolino(Dir,Dist,Turno,PosicionesConFichas) ->
+          (hayMolino(Dir,Dist,Turno,PosicionesConFichas,T) ->
              % Click en la ficha que quiere sacar
+             gr_mensaje(Visual,'Hay molino'));
              %eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas)),
           
-          contrincante(Turno,SiguienteTurno),
-          loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Dir,Dist,Turno)|PosicionesConFichas])
+             (contrincante(Turno,SiguienteTurno),
+             loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Dir,Dist,Turno)|PosicionesConFichas]))
         );
           gr_mensaje(Visual,'Finalizo la fase colocar, se alcanzó el máximo de fichas para este tablero.'),
           true.
