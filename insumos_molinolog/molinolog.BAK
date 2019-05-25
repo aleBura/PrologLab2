@@ -32,9 +32,15 @@ contrincante(blanco,negro).
 % --------------------------
 
 loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
-    actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas),
-    gr_evento(Visual,E),
-    evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas).
+    ( largo(PosicionesConFichas,L),
+      L < 3 * (T + 1)
+    ) -> (
+      actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas),
+      gr_evento(Visual,E),
+      evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
+    );
+      gr_mensaje(Visual,'Finalizo la fase colocar, se alcanzó el máximo de fichas para este tablero.'),
+      true.
     
 % TODO fase MOVER
 % por ahora solo considero que es  humano vs humano
@@ -44,34 +50,28 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
         ( gr_mensaje(Visual,'La posición no está vacía, no puede colocar una ficha ahí.'),
           loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
         );
-        ( largo(PosicionesConFichas,L),
-          L < 3 * (T + 1)
-        ) ->
-        (
-          gr_ficha(Visual,T,Dir,Dist,Turno),
+        gr_ficha(Visual,T,Dir,Dist,Turno),
 
-          % En este punto ya puso la ficha, ahora hay que chequear si hay molino o no
-          % Le paso la posicion nueva porque solo considero molinos que incluyan esa posicion
-          % Si se generan 2 molinos a la vez solo se saca una ficha.
+        % En este punto ya puso la ficha, ahora hay que chequear si hay molino o no
+        % Le paso la posicion nueva porque solo considero molinos que incluyan esa posicion
+        % Si se generan 2 molinos a la vez solo se saca una ficha.
 
-          (hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Visual) ->
-             % Click en la ficha que quiere sacar
-               gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
-               gr_evento(Visual, E), %Espero por el click
-               eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha),
-               %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
-               gr_ficha(Visual,T,Dir,Dist,Turno),
-               contrincante(Turno,SiguienteTurno),
-               loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
-             );
-             % Else no hay molino
-             (
-               contrincante(Turno,SiguienteTurno),
-               loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas])
-             )
-        );
-          gr_mensaje(Visual,'Finalizo la fase colocar, se alcanzó el máximo de fichas para este tablero.'),
-          true.
+        hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Visual) ->
+           % Click en la ficha que quiere sacar
+             gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
+             gr_evento(Visual, E), %Espero por el click
+             eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha),
+             %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
+             gr_ficha(Visual,T,Dir,Dist,Turno),
+             contrincante(Turno,SiguienteTurno),
+             loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
+           );
+           % Else no hay molino
+           (
+             contrincante(Turno,SiguienteTurno),
+             loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas])
+           ).
+
     
 evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
     (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
@@ -237,7 +237,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         )),
-                                                        (Dir = n; Dir = s; Dir = e; Dir = s),
+                                                        (Dir = n; Dir = s; Dir = e; Dir = s), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
                                                         marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]).
 
