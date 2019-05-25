@@ -59,6 +59,8 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
                gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
                gr_evento(Visual, E), %Espero por el click
                eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha),
+               %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
+               gr_ficha(Visual,T,Dir,Dist,Turno),
                contrincante(Turno,SiguienteTurno),
                loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
              );
@@ -235,6 +237,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         )),
+                                                        (Dir = n; Dir = s; Dir = e; Dir = s), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
                                                         marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]).
 
@@ -258,10 +261,9 @@ eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas,T,PosicionesSinEs
                posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) ->
                (
                  contrincante(Turno,OtroJugador),
-                 removerFicha(PosicionesConFichas,(Dir,Dist,OtroJugador),PosicionesSinEsaFicha),
+                 removerFicha(PosicionesConFichas,(OtroJugador,Dir,Dist),PosicionesSinEsaFicha),
                  convertirFormato(PosicionesSinEsaFicha,Fichas),
                  gr_dibujar_tablero(Visual,T,Fichas)
-                 %redibujarTablero(PosicionesSinEsaFicha,Visual,T)
                );
                 gr_mensaje(Visual,'La posición seleccionada no contiene una ficha de su rival.'),
                 gr_evento(Visual, E), %Espero por el siguiente click
@@ -285,5 +287,6 @@ concatenacion([],X,X).
 concatenacion(X,[],X).
 concatenacion([X|Xs],L2,[X|L]) :- concatenacion(Xs,L2,L).
 
-convertirFormato([],_,_).
-convertirFormato([(Tipo,Dir,Dist)|Xs],L):- convertirFormato(Xs,[ficha(Tipo,Dir,Dist)|L]).
+convertirFormato([],[]).
+convertirFormato([(Tipo,Dir,Dist)|Xs],[ficha(Tipo,Dir,Dist)|Xs2]):- convertirFormato(Xs,Xs2).
+                                           
