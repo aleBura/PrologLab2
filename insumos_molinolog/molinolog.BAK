@@ -31,16 +31,62 @@ contrincante(blanco,negro).
 % Loop principal
 % --------------------------
 
-loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
-    sformat(Msg, 'Jugador ~w', [Turno]),
-    gr_estado(Visual, Msg),
+loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
+    actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas),
     gr_evento(Visual,E),
-    evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas).
+    evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas).
     
 % TODO fase MOVER
 % por ahora solo considero que es  humano vs humano
 
-hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((Dir, Dist, _), PosicionesConFichas).
+evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, PosicionesConFichas) :-
+    hayFicha(Dir,Dist,PosicionesConFichas) ->
+        ( gr_mensaje(Visual,'La posición no está vacía, no puede colocar una ficha ahí.'),
+          loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+        );
+        ( largo(PosicionesConFichas,L),
+          L < 3 * (T + 1)
+        ) ->
+        (
+          gr_ficha(Visual,T,Dir,Dist,Turno),
+
+          % En este punto ya puso la ficha, ahora hay que chequear si hay molino o no
+          % Le paso la posicion nueva porque solo considero molinos que incluyan esa posicion
+          % Si se generan 2 molinos a la vez solo se saca una ficha.
+
+          (hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Visual) ->
+             % Click en la ficha que quiere sacar
+               gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
+               gr_evento(Visual, E), %Espero por el click
+               eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha),
+               contrincante(Turno,SiguienteTurno),
+               loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
+             );
+             % Else no hay molino
+             (
+               contrincante(Turno,SiguienteTurno),
+               loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas])
+             )
+        );
+          gr_mensaje(Visual,'Finalizo la fase colocar, se alcanzó el máximo de fichas para este tablero.'),
+          true.
+    
+evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+    (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
+            true;
+            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+    ).
+        
+evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+    (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->  % reiniciar el juego
+           iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+           loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+    ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesConFichas).
 
 % pertenece(?X,?L) ← X pertenece a la lista L
 pertenece((X,Y,Z),[(X,Y,Z)|_]).
@@ -107,58 +153,60 @@ menosDos(Dist,M) :- M is Dist-2, 1 =< M.
 
 %%% Predicados para ver si hay molino %%%%
 
-hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Ventana) :- hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana);
+hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Ventana) :- (hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana);
                                                            hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana);
-                                                           hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana).
-                                                   
+                                                           hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana)),
+                                                           sformat(Msg, 'Jugador ~w, obtuvo un molino debe eliminar ficha del contrincante', [Turno]),
+                                                           gr_estado(Ventana, Msg).
+
 hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                                     %La posicion que agruegé puede estar al medio, a la izquierda o a la derecha.
                                                                     %Primer caso al medio
                                                                     ((
                                                                      izquierda(Dir,X),
                                                                      derecha(Dir,Y),
-                                                                     pertenece((X,Dist,Turno2),PosicionesConFichas),
-                                                                     pertenece((Y,Dist,Turno3),PosicionesConFichas)
+                                                                     pertenece((Turno2,X,Dist),PosicionesConFichas),
+                                                                     pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                                     );
                                                                     %Segundo caso a la izquierda
                                                                     (
                                                                      derecha(Dir,X),
                                                                      dobleDerecha(Dir,Y),
-                                                                     pertenece((X,Dist,Turno2),PosicionesConFichas),
-                                                                     pertenece((Y,Dist,Turno3),PosicionesConFichas)
+                                                                     pertenece((Turno2,X,Dist),PosicionesConFichas),
+                                                                     pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                                     );
                                                                     %Tercer caso a la derecha
                                                                     (
                                                                      izquierda(Dir,X),
                                                                      dobleIzquierda(Dir,Y),
-                                                                     pertenece((X,Dist,Turno2),PosicionesConFichas),
-                                                                     pertenece((Y,Dist,Turno3),PosicionesConFichas)
+                                                                     pertenece((Turno2,X,Dist),PosicionesConFichas),
+                                                                     pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                                     )),
                                                                     mismoJugador(Turno, Turno2, Turno3),
                                                                     marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
-                                                           
+
 hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                           %La posicion que agruegé puede estar al medio, arriba o abajo.
                                                           %Primer caso al medio
                                                           ((
                                                            arriba(Dir,X),
                                                            abajo(Dir,Y),
-                                                           pertenece((X,Dist,Turno2),PosicionesConFichas),
-                                                           pertenece((Y,Dist,Turno3),PosicionesConFichas)
+                                                           pertenece((Turno2,X,Dist),PosicionesConFichas),
+                                                           pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                           );
                                                           %Segundo caso arriba
                                                           (
                                                            abajo(Dir,X),
                                                            dobleAbajo(Dir,Y),
-                                                           pertenece((X,Dist,Turno2),PosicionesConFichas),
-                                                           pertenece((Y,Dist,Turno3),PosicionesConFichas)
+                                                           pertenece((Turno2,X,Dist),PosicionesConFichas),
+                                                           pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                           );
                                                           %Tercer caso abajo
                                                           (
                                                            arriba(Dir,X),
                                                            dobleArriba(Dir,Y),
-                                                           pertenece((X,Dist,Turno2),PosicionesConFichas),
-                                                           pertenece((Y,Dist,Turno3),PosicionesConFichas)
+                                                           pertenece((Turno2,X,Dist),PosicionesConFichas),
+                                                           pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                           )),
                                                           mismoJugador(Turno, Turno2, Turno3),
                                                           marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
@@ -170,22 +218,22 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                         ((
                                                          masUno(Dist,X,T),
                                                          menosUno(Dist,Y),
-                                                         pertenece((Dir,X,Turno2),PosicionesConFichas),
-                                                         pertenece((Dir,Y,Turno3),PosicionesConFichas)
+                                                         pertenece((Turno2,Dir,X),PosicionesConFichas),
+                                                         pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         );
                                                         %Segundo caso arriba
                                                         (
                                                          menosUno(Dist,X),
                                                          menosDos(Dist,Y),
-                                                         pertenece((Dir,X,Turno2),PosicionesConFichas),
-                                                         pertenece((Dir,Y,Turno3),PosicionesConFichas)
+                                                         pertenece((Turno2,Dir,X),PosicionesConFichas),
+                                                         pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         );
                                                         %Tercer caso abajo
                                                         (
                                                          masUno(Dist,X,T),
                                                          masDos(Dist,Y,T),
-                                                         pertenece((Dir,X,Turno2),PosicionesConFichas),
-                                                         pertenece((Dir,Y,Turno3),PosicionesConFichas)
+                                                         pertenece((Turno2,Dir,X),PosicionesConFichas),
+                                                         pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         )),
                                                         mismoJugador(Turno, Turno2, Turno3),
                                                         marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]).
@@ -198,44 +246,43 @@ mismoJugador(negro,negro,negro).
 marcarMolino(_, _, []).
 marcarMolino(Ventana, T, [(Dir,Dist)|Xs]) :- gr_ficha(Ventana, T, Dir, Dist, "seleccion"),
                                              marcarMolino(Ventana, T, Xs).
+                                             
+actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas) :- largo(PosicionesConFichas,L),
+                                                                      Cant is (3*(T+1)-L),
+                                                                      sformat(Msg, 'Jugador ~w, fase ~w (restan colocar ~w fichas)', [Turno,Fase,Cant]),
+                                                                      gr_estado(Visual, Msg).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, PosicionesConFichas) :-
-    hayFicha(Dir,Dist,PosicionesConFichas) ->
-        ( gr_mensaje(Visual,'La posición no está vacía, no puede colocar una ficha ahí.'),
-          loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
-        );
-        ( largo(PosicionesConFichas,L),
-          L < 3 * (T + 1)
-        ) ->
-        (
-          gr_ficha(Visual,T,Dir,Dist,Turno),
+eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha) :-
+               posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) ->
+               (
+                 removerFicha(PosicionesConFichas,(Dir,Dist,_),PosicionesSinEsaFicha),
+                 convertirFormato(PosicionesSinEsaFicha,Fichas),
+                 gr_dibujar_tablero(Visual,T,Fichas)
+                 %redibujarTablero(PosicionesSinEsaFicha,Visual,T)
+               );
+                gr_mensaje(Visual,'La posición seleccionada no contiene una ficha de su rival.'),
+                gr_evento(Visual, E), %Espero por el siguiente click
+                eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha).
+                
+posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) :-
+               contrincante(Turno,OtroJugador),
+               pertenece((OtroJugador,Dir,Dist),PosicionesConFichas).
+               
+% removerFicha(+L,?E,?LSinE) ← LSinE es la lista L sin ninguna ocurrencia del elemento E.
+removerFicha(L,E,LSinE) :- sin_elem_accu(L,E,[],LSinE).
 
-          % En este punto ya puso la ficha, ahora hay que chequear si hay molino o no
-          % Le paso la posicion nueva porque solo considero molinos que incluyan esa posicion
-          % Si se generan 2 molinos a la vez solo se saca una ficha.
+% sin_elem_accu(?L,?E,+Ac,?SinE) ← La lista SinE es la lista L sin E. Ac es el acumulador e inicialmente debe ser []
+sin_elem_accu([],_,Ac,Ac).
+sin_elem_accu([(Tipo,Dir,Dist)|T],(Tipo,Dir,Dist),Ac,SinE) :- sin_elem_accu(T,(Tipo,Dir,Dist),Ac,SinE),!.
+sin_elem_accu([(J,X,Y)|T],(Tipo,Dir,Dist),Ac,SinE) :- concatenacion(Ac,[(J,X,Y)],C),
+                                                   sin_elem_accu(T,(Tipo,Dir,Dist),C,SinE).
+                                  
+% concatenacion(?L1,?L2,?L) ← La lista L es la concatenación de L1 con L2.
+concatenacion([],X,X).
+concatenacion(X,[],X).
+concatenacion([X|Xs],L2,[X|L]) :- concatenacion(Xs,L2,L).
 
-          (hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Ventana) ->
-             % Click en la ficha que quiere sacar
-             gr_mensaje(Visual,'Hay molino'));
-             
-             %eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas));
-          
-             (contrincante(Turno,SiguienteTurno),
-             loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Dir,Dist,Turno)|PosicionesConFichas]))
-        );
-          gr_mensaje(Visual,'Finalizo la fase colocar, se alcanzó el máximo de fichas para este tablero.'),
-          true.
-    
-evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
-    (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
-            true;
-            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
-    ).
-        
-evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
-    (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->  % reiniciar el juego
-           iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
-           loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
-    ).
+convertirFormato([],_,_).
+convertirFormato([(Tipo,Dir,Dist)|Xs],L):- convertirFormato(Xs,[ficha(Tipo,Dir,Dist)|L]).
