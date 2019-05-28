@@ -196,7 +196,7 @@ dobleIzquierda(se,sw).
 derecha(n,ne).
 derecha(nw,n).
 derecha(s,se).
-derecha(sw,n).
+derecha(sw,s).
 
 dobleDerecha(nw,ne).
 dobleDerecha(sw,se).
@@ -319,7 +319,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         )),
-                                                        (Dir = n; Dir = s; Dir = e; Dir = s), %Para descartar molinos diagonales
+                                                        (Dir = n; Dir = s; Dir = e; Dir = w), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
                                                         marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]).
 
