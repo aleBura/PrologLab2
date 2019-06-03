@@ -228,8 +228,8 @@ medio(e).
 % en las filas y columnas del medio es por la distancia
 % ademas pueden ser de largo variable
 
-masUno(Dist,M,T) :- M is Dist+1, M =< T.
-masDos(Dist,M,T) :- M is Dist+2, M =< T.
+masUno(Dist,M,Max) :- M is Dist+1, M =< Max.
+masDos(Dist,M,Max) :- M is Dist+2, M =< Max.
 menosUno(Dist,M) :- M is Dist-1, 1 =< M.
 menosDos(Dist,M) :- M is Dist-2, 1 =< M.
 
@@ -300,7 +300,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                         %La posicion que agruegé puede estar al medio, arriba o abajo.
                                                         %Primer caso al medio
                                                         ((
-                                                         masUno(Dist,X,T),
+                                                         masUno(Dist,X,T+1),
                                                          menosUno(Dist,Y),
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
@@ -314,8 +314,8 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                         );
                                                         %Tercer caso abajo
                                                         (
-                                                         masUno(Dist,X,T),
-                                                         masDos(Dist,Y,T),
+                                                         masUno(Dist,X,T+1),
+                                                         masDos(Dist,Y,T+1),
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         )),
