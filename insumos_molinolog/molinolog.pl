@@ -31,40 +31,40 @@ contrincante(blanco,negro).
 % Loop principal
 % --------------------------
 
-loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
-    Fase = colocar ->
-    (( getMyFichas(PosicionesConFichas,Turno,MyFichas),
-      largo(MyFichas,L),
-      L < 3 * (T + 1)
-    ) -> (
-      actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas),
-      gr_evento(Visual,E),
-      evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
-    );
-      sformat(Msg, 'Finalizó la fase colocar, el jugador ~w alcanzó el máximo de fichas para este tablero. Comenzará la fase mover, iniciando el jugador negro.', [Turno]),
-      gr_mensaje(Visual,Msg),
-      loop(Visual,negro,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas));
-      
-      %Fase mover
-      %Lo primero que se debe hacer es chequear que haya movimientos válidos.
-      hayMovimientosValidos(Turno,T,PosicionesConFichas) -> (
+loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+  (getMyFichas(PosicionesConFichas,Turno,MyFichas),
+    largo(MyFichas,L),
+    L < 3 * (T + 1)
+  ) -> (
+    actualizarMensajeInferior(Turno,colocar,T,Visual,PosicionesConFichas),
+    gr_evento(Visual,E),
+    evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+  )
+  ;
+  (sformat(Msg, 'Finalizó la fase colocar, el jugador ~w alcanzó el máximo de fichas para este tablero. Comenzará la fase mover, iniciando el jugador negro.', [Turno]),
+  gr_mensaje(Visual,Msg),
+  loop(Visual,negro,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)).
 
-        sformat(Msg, 'Jugador ~w fase colocar mueva alguna de sus fichas a una posición adyacente.', [Turno]),
-        gr_mensaje(Visual,Msg),
-        gr_evento(Visual,E),
-        ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas))
-        ;
-          primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
-        )
-        %Pueden mover solo a posiciones adyacentes
-        %Se controla que la posicion esté vacia y sea adyacente
-        %Se controla si se forma molino
-        %Cuando alguno de los 2 queda con 2 fichas  termina el juego
+loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
+  %Lo primero que se debe hacer es chequear que haya movimientos válidos.
+  hayMovimientosValidos(Turno,T,PosicionesConFichas) -> (
 
-      );
-        gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
-        contrincante(Turno,SiguienteTurno),
-        loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
+    sformat(Msg, 'Jugador ~w fase colocar mueva alguna de sus fichas a una posición adyacente.', [Turno]),
+    gr_mensaje(Visual,Msg),
+    gr_evento(Visual,E),
+    ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas))
+    ;
+      primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
+    )
+    %Pueden mover solo a posiciones adyacentes
+    %Se controla que la posicion esté vacia y sea adyacente
+    %Se controla si se forma molino
+    %Cuando alguno de los 2 queda con 2 fichas  termina el juego
+
+  );
+    gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
+    contrincante(Turno,SiguienteTurno),
+    loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
 
 % TODO acá hay que controlar que para alguna de mis fichas haya una posicion
 % adyacente vacía
