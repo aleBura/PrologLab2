@@ -45,9 +45,7 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
 loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
   %Lo primero que se debe hacer es chequear que haya movimientos válidos.
   hayMovimientosValidos(Turno,T,PosicionesConFichas) -> (
-
-    sformat(Msg, 'Jugador ~w fase colocar mueva alguna de sus fichas a una posición adyacente.', [Turno]),
-    gr_mensaje(Visual,Msg),
+    actualizarMensajeInferior(Turno,mover,Visual),
     gr_evento(Visual,E),
     ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas))
     ;
@@ -107,10 +105,11 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, Po
          convertirFormato(PosicionesSinEsaFicha,Fichas),
          gr_dibujar_tablero(Visual,T,Fichas),
          gr_ficha(Visual,T,Dir,Dist,Turno),
-         
+
          hayMolino(Dir,Dist,Turno,PosicionesSinEsaFicha,T,Visual) -> (
          % Click en la ficha que quiere sacar
            gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
+           actualizarMensajeInferior(Turno,mover,capturar,Visual),
            gr_evento(Visual, E), %Espero por el click
            eliminarFicha(E,Turno,Visual,PosicionesSinEsaFicha,T,PosicionesSinEsaFichaMolino),
            %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
@@ -359,6 +358,9 @@ actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados) :- Cant is (3*(T
                                                                   sformat(Msg, 'Jugador ~w, fase colocar (restan colocar ~w fichas)', [Turno,Cant]),
                                                                   gr_estado(Visual, Msg).
 
+actualizarMensajeInferior(Turno,mover,capturar,Visual) :- sformat(Msg, 'Jugador ~w, capturar', [Turno]), gr_estado(Visual, Msg).
+
+actualizarMensajeInferior(Turno,mover,Visual) :- sformat(Msg, 'Jugador ~w, mover', [Turno]), gr_estado(Visual, Msg).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha) :-
