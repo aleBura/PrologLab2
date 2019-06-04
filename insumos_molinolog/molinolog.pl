@@ -52,7 +52,10 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
         sformat(Msg, 'Jugador ~w fase colocar mueva alguna de sus fichas a una posición adyacente.', [Turno]),
         gr_mensaje(Visual,Msg),
         gr_evento(Visual,E),
-        primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
+        ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas))
+        ;
+          primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
+        )
         %Pueden mover solo a posiciones adyacentes
         %Se controla que la posicion esté vacia y sea adyacente
         %Se controla si se forma molino
@@ -66,6 +69,9 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
 % TODO acá hay que controlar que para alguna de mis fichas haya una posicion
 % adyacente vacía
 hayMovimientosValidos(Turno, T, PosicionesConFichas).
+
+esSalirOReiniciar(salir).
+esSalirOReiniciar(reiniciar).
 
 adyacentes(Dir, Dist, DirSel, DistSel) :-
 %Son adyacentes si tienen una diferencia de distancia 1 y la misma direcccion
@@ -154,17 +160,16 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas])
            ).
 
-    
-evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
     (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
             true;
-            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
     ).
-        
-evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+
+evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
     (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->  % reiniciar el juego
-           iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
-           loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+            iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
     ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
