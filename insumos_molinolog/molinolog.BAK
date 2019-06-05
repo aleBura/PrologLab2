@@ -73,7 +73,7 @@ generarTodasLasPosiciones(DistMax,TodasLasPosiciones,Ac) :-
 
 % Acá hay que controlar que para alguna
 % de mis fichas haya una posicion adyacente vacía
-hayMovimientosValidos(Turno, [(Turno,Dir, Dist)|_],PosicionesConFichas, PosicionesDelTablero) :-
+hayMovimientosValidos(Turno, [(Turno,Dir, Dist)|_], PosicionesConFichas, PosicionesDelTablero) :-
                                                                          pertenece2((X,Y),PosicionesDelTablero),
                                                                          adyacentes(Dir, Dist, X, Y),
                                                                          (pertenece((_,X,Y),PosicionesConFichas) -> false;
@@ -133,13 +133,39 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, Po
            %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
            gr_ficha(Visual,T,Dir,Dist,Turno),
            contrincante(Turno,SiguienteTurno),
-           loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino])
+           %Se chequea que haya finalizado el juego
+           (finDelJuego(negro,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino],CantNegro,0), CantNegro > 2 ->
+              (finDelJuego(blanco,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino],CantBlanco,0), CantBlanco > 2 ->
+                loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino]);
+                %perdio el blanco
+                gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+                   iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+                   true
+              );
+              %perdio el negro
+              gr_opciones(Visual, 'Fin del juego, jugador blanco ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+                 iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+                 true
+           )
          );
          % Else no hay molino
          (
            contrincante(Turno,SiguienteTurno),
            removerFicha(PosicionesConFichas,(Turno,DirSel,DistSel),PosicionesSinEsaFicha),
-           loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
+           %Se chequea que haya finalizado el juego
+           (finDelJuego(negro,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino],CantNegro,0), CantNegro > 2 ->
+              (finDelJuego(blanco,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino],CantBlanco,0), CantBlanco > 2 ->
+                loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFicha]);
+                %perdio el blanco
+                gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+                   iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+                   true
+              );
+              %perdio el negro
+              gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+                 iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+                 true
+           )
          )
 
        );
@@ -208,6 +234,13 @@ evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFi
   ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+finDelJuego(_,[],Ac,Ac).
+finDelJuego(Turno,[(Turno,_,_)|Xs],Cant,Ac) :- Sum is Ac + 1,
+                                               finDelJuego(Turno,Xs,Cant,Sum),
+                                               !.
+finDelJuego(Turno,[(_,_,_)|Xs],Cant,Ac) :- finDelJuego(Turno,Xs,Cant,Ac).
+
 esJugadorNegro(negro).
 
 hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesConFichas).
