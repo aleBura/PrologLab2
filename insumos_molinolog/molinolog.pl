@@ -44,7 +44,9 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
 
 loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
   %Lo primero que se debe hacer es chequear que haya movimientos válidos.
-  hayMovimientosValidos(Turno,T,PosicionesConFichas) -> (
+  DistMax is T + 1,
+  generarTodasLasPosiciones(DistMax,TodasLasPosiciones,[]),
+  hayMovimientosValidos(Turno,PosicionesConFichas,PosicionesConFichas,TodasLasPosiciones) -> (
     actualizarMensajeInferior(Turno,mover,Visual),
     gr_evento(Visual,E),
     ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas))
@@ -61,9 +63,24 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
     contrincante(Turno,SiguienteTurno),
     loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
 
-% TODO acá hay que controlar que para alguna de mis fichas haya una posicion
-% adyacente vacía
-hayMovimientosValidos(Turno, T, PosicionesConFichas).
+generarTodasLasPosiciones(0,Ac,Ac):- true.
+generarTodasLasPosiciones(DistMax,TodasLasPosiciones,Ac) :-
+  DistMax > 0,
+  concatenacion([(nw,DistMax),(n,DistMax),(ne,DistMax),(e,DistMax),(se,DistMax),(s,DistMax),(sw,DistMax),(w,DistMax)], Ac, NuevasPos),
+  !,
+  Siguiente is DistMax - 1,
+  generarTodasLasPosiciones(Siguiente,TodasLasPosiciones,NuevasPos).
+
+% Acá hay que controlar que para alguna
+% de mis fichas haya una posicion adyacente vacía
+hayMovimientosValidos(Turno, [(Turno,Dir, Dist)|_], PosicionesConFichas, PosicionesDelTablero) :-
+                                                                         pertenece2((X,Y),PosicionesDelTablero),
+                                                                         adyacentes(Dir, Dist, X, Y),
+                                                                         (pertenece((_,X,Y),PosicionesConFichas) -> false;
+                                                                                                                   true).
+                                                                                                                   
+hayMovimientosValidos(Turno, [(_,_,_)|PosicionesConFichasIter], PosicionesConFichas, PosicionesDelTablero) :-
+   hayMovimientosValidos(Turno,PosicionesConFichasIter, PosicionesConFichas, PosicionesDelTablero).
 
 esSalirOReiniciar(salir).
 esSalirOReiniciar(reiniciar).
@@ -71,6 +88,7 @@ esSalirOReiniciar(reiniciar).
 adyacentes(Dir, Dist, DirSel, DistSel) :-
 %Son adyacentes si tienen una diferencia de distancia 1 y la misma direcccion
 %O diferencia de distancia 0 y direcciones pegadas (arriba, abajo, izq, der)
+
     Resta is Dist - DistSel,
     abs(Resta,Abs),
     ((Abs = 1, Dir = DirSel, medio(Dir));
@@ -197,6 +215,9 @@ hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesCon
 % pertenece(?X,?L) ← X pertenece a la lista L
 pertenece((X,Y,Z),[(X,Y,Z)|_]).
 pertenece((X,Y,Z),[_|Ys]) :- pertenece((X,Y,Z),Ys).
+
+pertenece2((X,Y),[(X,Y)|_]).
+pertenece2((X,Y),[_|Ys]) :- pertenece2((X,Y),Ys).
 
 % largo(+L,?N) ← N es el largo de la lista L.
 largo([],0).

@@ -22,7 +22,7 @@ molinolog(JugadorNegro,JugadorBlanco,T) :-
 
 iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T):-
     gr_dibujar_tablero(Visual,T,[]),
-    loop(Visual,negro,JugadorNegro,JugadorBlanco,T,colocar,[]).
+    loop(Visual,negro,JugadorNegro,JugadorBlanco,T,colocar,[],0).
 
 contrincante(negro,blanco).
 contrincante(blanco,negro).
@@ -31,45 +31,64 @@ contrincante(blanco,negro).
 % Loop principal
 % --------------------------
 
-loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas) :-
-    Fase = colocar ->
-    (( getMyFichas(PosicionesConFichas,Turno,MyFichas),
-      largo(MyFichas,L),
-      L < 3 * (T + 1)
-    ) -> (
-      actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas),
-      gr_evento(Visual,E),
-      evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
-    );
-      sformat(Msg, 'Finalizó la fase colocar, el jugador ~w alcanzó el máximo de fichas para este tablero. Comenzará la fase mover, iniciando el jugador negro.', [Turno]),
-      gr_mensaje(Visual,Msg),
-      loop(Visual,negro,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas));
-      
-      %Fase mover
-      %Lo primero que se debe hacer es chequear que haya movimientos válidos.
-      hayMovimientosValidos(Turno,T,PosicionesConFichas) -> (
+loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados) :-
+  (TurnosPasados < 3 * (T + 1)) -> (
+    actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados),
+    gr_evento(Visual,E),
+    evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
+  )
+  ;
+  (sformat(Msg, 'Finalizó la fase colocar, el jugador ~w alcanzó el máximo de fichas para este tablero. Comenzará la fase mover, iniciando el jugador negro.', [Turno]),
+  gr_mensaje(Visual,Msg),
+  loop(Visual,negro,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)).
 
-        sformat(Msg, 'Jugador ~w fase colocar mueva alguna de sus fichas a una posición adyacente.', [Turno]),
-        gr_mensaje(Visual,Msg),
-        gr_evento(Visual,E),
-        primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,Fase,PosicionesConFichas)
-        %Pueden mover solo a posiciones adyacentes
-        %Se controla que la posicion esté vacia y sea adyacente
-        %Se controla si se forma molino
-        %Cuando alguno de los 2 queda con 2 fichas  termina el juego
+loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
+  %Lo primero que se debe hacer es chequear que haya movimientos válidos.
+  DistMax is T + 1,
+  generarTodasLasPosiciones(DistMax,TodasLasPosiciones,[]),
+  hayMovimientosValidos(Turno,PosicionesConFichas,PosicionesConFichas,TodasLasPosiciones) -> (
+    actualizarMensajeInferior(Turno,mover,Visual),
+    gr_evento(Visual,E),
+    ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas))
+    ;
+      primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
+    )
+    %Pueden mover solo a posiciones adyacentes
+    %Se controla que la posicion esté vacia y sea adyacente
+    %Se controla si se forma molino
+    %Cuando alguno de los 2 queda con 2 fichas  termina el juego
 
-      );
-        gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
-        contrincante(Turno,SiguienteTurno),
-        loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
+  );
+    gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
+    contrincante(Turno,SiguienteTurno),
+    loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
 
-% TODO acá hay que controlar que para alguna de mis fichas haya una posicion
-% adyacente vacía
-hayMovimientosValidos(Turno, T, PosicionesConFichas).
+generarTodasLasPosiciones(0,Ac,Ac):- true.
+generarTodasLasPosiciones(DistMax,TodasLasPosiciones,Ac) :-
+  DistMax > 0,
+  concatenacion([(nw,DistMax),(n,DistMax),(ne,DistMax),(e,DistMax),(se,DistMax),(s,DistMax),(sw,DistMax),(w,DistMax)], Ac, NuevasPos),
+  !,
+  Siguiente is DistMax - 1,
+  generarTodasLasPosiciones(Siguiente,TodasLasPosiciones,NuevasPos).
+
+% Acá hay que controlar que para alguna
+% de mis fichas haya una posicion adyacente vacía
+hayMovimientosValidos(Turno, [(Turno,Dir, Dist)|_],PosicionesConFichas, PosicionesDelTablero) :-
+                                                                         pertenece2((X,Y),PosicionesDelTablero),
+                                                                         adyacentes(Dir, Dist, X, Y),
+                                                                         (pertenece((_,X,Y),PosicionesConFichas) -> false;
+                                                                                                                   true).
+                                                                                                                   
+hayMovimientosValidos(Turno, [(_,_,_)|PosicionesConFichasIter], PosicionesConFichas, PosicionesDelTablero) :-
+   hayMovimientosValidos(Turno,PosicionesConFichasIter, PosicionesConFichas, PosicionesDelTablero).
+
+esSalirOReiniciar(salir).
+esSalirOReiniciar(reiniciar).
 
 adyacentes(Dir, Dist, DirSel, DistSel) :-
 %Son adyacentes si tienen una diferencia de distancia 1 y la misma direcccion
 %O diferencia de distancia 0 y direcciones pegadas (arriba, abajo, izq, der)
+
     Resta is Dist - DistSel,
     abs(Resta,Abs),
     ((Abs = 1, Dir = DirSel, medio(Dir));
@@ -104,10 +123,11 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, Po
          convertirFormato(PosicionesSinEsaFicha,Fichas),
          gr_dibujar_tablero(Visual,T,Fichas),
          gr_ficha(Visual,T,Dir,Dist,Turno),
-         
+
          hayMolino(Dir,Dist,Turno,PosicionesSinEsaFicha,T,Visual) -> (
          % Click en la ficha que quiere sacar
            gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
+           actualizarMensajeInferior(Turno,mover,capturar,Visual),
            gr_evento(Visual, E), %Espero por el click
            eliminarFicha(E,Turno,Visual,PosicionesSinEsaFicha,T,PosicionesSinEsaFichaMolino),
            %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
@@ -118,18 +138,19 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, Po
          % Else no hay molino
          (
            contrincante(Turno,SiguienteTurno),
-           loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino])
+           removerFicha(PosicionesConFichas,(Turno,DirSel,DistSel),PosicionesSinEsaFicha),
+           loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
          )
-         
+
        );
          gr_mensaje(Visual,'Seleccionó  una posición incorrecta, vuelva a intentarlo.'),
          gr_evento(Visual,E),
          primerClick(E, Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, PosicionesConFichas).
 
-evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, PosicionesConFichas) :-
+evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, PosicionesConFichas,TurnosPasados) :-
     hayFicha(Dir,Dist,PosicionesConFichas) ->
         ( gr_mensaje(Visual,'La posición no está vacía, no puede colocar una ficha ahí.'),
-          loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+          loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
         );
         gr_ficha(Visual,T,Dir,Dist,Turno),
 
@@ -145,35 +166,58 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
              %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
              gr_ficha(Visual,T,Dir,Dist,Turno),
              contrincante(Turno,SiguienteTurno),
-             loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha])
+             (
+              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],TurnosPasados))
+              ;
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],TurnosPasados+1)
+             )
+
            );
            % Else no hay molino
            (
              contrincante(Turno,SiguienteTurno),
-             loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas])
+            (
+              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],TurnosPasados))
+              ;
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],TurnosPasados+1)
+             )
            ).
 
-    
-evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados) :-
     (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
             true;
-            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
     ).
-        
-evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas) :-
+
+evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados) :-
     (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->  % reiniciar el juego
-           iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
-           loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas)
+            iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
     ).
+
+evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
+    (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->
+            true;
+            loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
+    ).
+
+evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
+  (   gr_opciones(Visual, '¿Seguro?', ['Sí', 'No'], 'Sí') ->  % reiniciar el juego
+          iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+          loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
+  ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+esJugadorNegro(negro).
 
 hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesConFichas).
 
 % pertenece(?X,?L) ← X pertenece a la lista L
 pertenece((X,Y,Z),[(X,Y,Z)|_]).
 pertenece((X,Y,Z),[_|Ys]) :- pertenece((X,Y,Z),Ys).
+
+pertenece2((X,Y),[(X,Y)|_]).
+pertenece2((X,Y),[_|Ys]) :- pertenece2((X,Y),Ys).
 
 % largo(+L,?N) ← N es el largo de la lista L.
 largo([],0).
@@ -195,7 +239,7 @@ dobleIzquierda(se,sw).
 derecha(n,ne).
 derecha(nw,n).
 derecha(s,se).
-derecha(sw,n).
+derecha(sw,s).
 
 dobleDerecha(nw,ne).
 dobleDerecha(sw,se).
@@ -227,8 +271,8 @@ medio(e).
 % en las filas y columnas del medio es por la distancia
 % ademas pueden ser de largo variable
 
-masUno(Dist,M,T) :- M is Dist+1, M =< T.
-masDos(Dist,M,T) :- M is Dist+2, M =< T.
+masUno(Dist,M,Max) :- M is Dist+1, M =< Max.
+masDos(Dist,M,Max) :- M is Dist+2, M =< Max.
 menosUno(Dist,M) :- M is Dist-1, 1 =< M.
 menosDos(Dist,M) :- M is Dist-2, 1 =< M.
 
@@ -299,7 +343,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                         %La posicion que agruegé puede estar al medio, arriba o abajo.
                                                         %Primer caso al medio
                                                         ((
-                                                         masUno(Dist,X,T),
+                                                         masUno(Dist,X,T+1),
                                                          menosUno(Dist,Y),
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
@@ -313,12 +357,12 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                         );
                                                         %Tercer caso abajo
                                                         (
-                                                         masUno(Dist,X,T),
-                                                         masDos(Dist,Y,T),
+                                                         masUno(Dist,X,T+1),
+                                                         masDos(Dist,Y,T+1),
                                                          pertenece((Turno2,Dir,X),PosicionesConFichas),
                                                          pertenece((Turno3,Dir,Y),PosicionesConFichas)
                                                         )),
-                                                        (Dir = n; Dir = s; Dir = e; Dir = s), %Para descartar molinos diagonales
+                                                        (Dir = n; Dir = s; Dir = e; Dir = w), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
                                                         marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]).
 
@@ -330,13 +374,14 @@ mismoJugador(negro,negro,negro).
 marcarMolino(_, _, []).
 marcarMolino(Ventana, T, [(Dir,Dist)|Xs]) :- gr_ficha(Ventana, T, Dir, Dist, "seleccion"),
                                              marcarMolino(Ventana, T, Xs).
-                                             
-actualizarMensajeInferior(Turno,Fase,T,Visual,PosicionesConFichas) :- getMyFichas(PosicionesConFichas,Turno,MyFichas),
-                                                                      largo(MyFichas,L),
-                                                                      Cant is (3*(T+1)-L),
-                                                                      sformat(Msg, 'Jugador ~w, fase ~w (restan colocar ~w fichas)', [Turno,Fase,Cant]),
-                                                                      gr_estado(Visual, Msg).
 
+actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados) :- Cant is (3*(T+1)-TurnosPasados),
+                                                                  sformat(Msg, 'Jugador ~w, fase colocar (restan colocar ~w fichas)', [Turno,Cant]),
+                                                                  gr_estado(Visual, Msg).
+
+actualizarMensajeInferior(Turno,mover,capturar,Visual) :- sformat(Msg, 'Jugador ~w, capturar', [Turno]), gr_estado(Visual, Msg).
+
+actualizarMensajeInferior(Turno,mover,Visual) :- sformat(Msg, 'Jugador ~w, mover', [Turno]), gr_estado(Visual, Msg).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha) :-
