@@ -4,9 +4,6 @@
 % entender el uso de graficos.pl
 % El contenido de este archivo se puede modificar.
 
-% El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
-minimax_depth(3).
-
 % molinolog(+JugadorNegro,+JugadorBlanco,+T)
 % JugadorNegtro y JugadorBlanco pueden ser los átomos humano o maquina.
 % T es el tamaño del tablero.
@@ -453,4 +450,41 @@ convertirFormato([(Tipo,Dir,Dist)|Xs],[ficha(Tipo,Dir,Dist)|Xs2]) :- convertirFo
 getMyFichas([],_,[]).
 getMyFichas([(Turno,Dir,Dist)|Xs],Turno,[(Turno,Dir,Dist)|Ys]) :- getMyFichas(Xs,Turno,Ys),!.
 getMyFichas([(_,_,_)|Xs],Turno,L) :- getMyFichas(Xs,Turno,L).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MINIMAX %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
+minimax_depth(3).
+
+% Tablero es una tupla (Lista de posiciones con jugador, Tamaño).
+% Fase es mover/colocar
+minimax((ListaPosConFichas,T), Depth, _, Turno, colocar, Valor) :-
+
+   %Si es un tablero final o si alcancé la máxima profundidad
+   (finColocar(ListaPosConFichas,T,negro);
+    finColocar(ListaPosConFichas,T,blanco);
+    Depth = 0) ->
+        heuristica(ListaPosConFichas, T, Turno, colocar, Valor).
+        
+minimax((ListaPosConFichas,T), Depth, true, Turno, colocar, Valor) :-
+
+  %Es jugador max
+  Max_value is -9999,
+  checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  SigNivel is Depth - 1,
+  minimax(([(Turno,Dir,Dist)|ListaPosConFichas],T), SigNivel, false, Turno ,colocar, SigValor),
+  max(Max_value,SigValor,Valor).
+
+minimax((ListaPosConFichas,T), Depth, false, Turno, colocar, Valor) :-
+
+  %Es jugador min
+  Min_value is 9999,
+  checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  SigNivel is Depth - 1,
+  minimax(([(Turno,Dir,Dist)|ListaPosConFichas],T), SigNivel, true, Turno ,colocar, SigValor),
+  max(Min_value,SigValor,Valor).
+
+
                                            

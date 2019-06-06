@@ -4,9 +4,6 @@
 % entender el uso de graficos.pl
 % El contenido de este archivo se puede modificar.
 
-% El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
-minimax_depth(3).
-
 % molinolog(+JugadorNegro,+JugadorBlanco,+T)
 % JugadorNegtro y JugadorBlanco pueden ser los átomos humano o maquina.
 % T es el tamaño del tablero.
@@ -153,8 +150,8 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, Po
            contrincante(Turno,SiguienteTurno),
            removerFicha(PosicionesConFichas,(Turno,DirSel,DistSel),PosicionesSinEsaFicha),
            %Se chequea que haya finalizado el juego
-           (finDelJuego(negro,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino],CantNegro,0), CantNegro > 2 ->
-              (finDelJuego(blanco,[(Turno,Dir,Dist)|PosicionesSinEsaFichaMolino],CantBlanco,0), CantBlanco > 2 ->
+           (finDelJuego(negro,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],CantNegro,0), CantNegro > 2 ->
+              (finDelJuego(blanco,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],CantBlanco,0), CantBlanco > 2 ->
                 loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,[(Turno,Dir,Dist)|PosicionesSinEsaFicha]);
                 %perdio el blanco
                 gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
@@ -453,4 +450,41 @@ convertirFormato([(Tipo,Dir,Dist)|Xs],[ficha(Tipo,Dir,Dist)|Xs2]) :- convertirFo
 getMyFichas([],_,[]).
 getMyFichas([(Turno,Dir,Dist)|Xs],Turno,[(Turno,Dir,Dist)|Ys]) :- getMyFichas(Xs,Turno,Ys),!.
 getMyFichas([(_,_,_)|Xs],Turno,L) :- getMyFichas(Xs,Turno,L).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MINIMAX %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
+minimax_depth(3).
+
+% Tablero es una tupla (Lista de posiciones con jugador, Tamaño).
+% Fase es mover/colocar
+minimax((ListaPosConFichas,T), Depth, _, Turno, colocar, Valor) :-
+
+   %Si es un tablero final o si alcancé la máxima profundidad
+   (finColocar(ListaPosConFichas,T,negro);
+    finColocar(ListaPosConFichas,T,blanco);
+    Depth = 0) ->
+        heuristica(ListaPosConFichas, T, Turno, colocar, Valor).
+        
+minimax((ListaPosConFichas,T), Depth, true, Turno, colocar, Valor) :-
+
+  %Es jugador max
+  Max_value is -9999,
+  checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  SigNivel is Depth - 1,
+  minimax(([(Turno,Dir,Dist)|ListaPosConFichass],T), SigNivel, false, Turno ,colocar, SigValor),
+  max(Max_value,SigValor,Valor).
+
+minimax((ListaPosConFichas,T), Depth, false, Turno, colocar, Valor) :-
+
+  %Es jugador min
+  Min_value is 9999,
+  checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  SigNivel is Depth - 1,
+  minimax(([(Turno,Dir,Dist)|ListaPosConFichass],T), SigNivel, true, Turno ,colocar, SigValor),
+  max(Min_value,SigValor,Valor).
+
+
                                            
