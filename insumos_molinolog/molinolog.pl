@@ -451,7 +451,6 @@ getMyFichas([],_,[]).
 getMyFichas([(Turno,Dir,Dist)|Xs],Turno,[(Turno,Dir,Dist)|Ys]) :- getMyFichas(Xs,Turno,Ys),!.
 getMyFichas([(_,_,_)|Xs],Turno,L) :- getMyFichas(Xs,Turno,L).
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MINIMAX %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -460,31 +459,62 @@ minimax_depth(3).
 
 % Tablero es una tupla (Lista de posiciones con jugador, Tamaño).
 % Fase es mover/colocar
-minimax((ListaPosConFichas,T), Depth, _, Turno, colocar, Valor) :-
-
+% Las hojas del arbol siempre son del jugador min (el turno opuesto)
+minimax(([(OtroTurno,Dir,Dist)|ListaPosConFichas],T), Depth, _, Turno, colocar, Valor) :-
+   contrincante(Turno,OtroTurno),
    %Si es un tablero final o si alcancé la máxima profundidad
-   (finColocar(ListaPosConFichas,T,negro);
-    finColocar(ListaPosConFichas,T,blanco);
+   MaxFichas is 3*(T+1),
+   cantFichas(ListaPosConFichas,negro,CantNegras),
+   cantFichas(ListaPosConFichas,blanco,CantBlancas),
+   (CantNegras = MaxFichas;
+    CantBlancas = MaxFichas);
     Depth = 0) ->
-        heuristica(ListaPosConFichas, T, Turno, colocar, Valor).
-        
+        heuristica([(Turno,Dir,Dist)|ListaPosConFichas], T, Turno, colocar, Valor).
+
 minimax((ListaPosConFichas,T), Depth, true, Turno, colocar, Valor) :-
 
   %Es jugador max
   Max_value is -9999,
   checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  contrincante(Turno,OtroTurno),
+  
+  %Si hay molino también hay que expandir en función de las posibilidades.
+  %De sacar la ficha del otro.
+  (hayMolino((Turno,Dir,Dist),ListaPosConFichas) ->
+     removerFicha(ListaPosConFichas,(OtroTurno,DirSel,DistSel),PosicionesSinEsaFicha),
+     ListaPosConFichas is PosicionesSinEsaFicha),
+
   SigNivel is Depth - 1,
-  minimax(([(Turno,Dir,Dist)|ListaPosConFichas],T), SigNivel, false, Turno ,colocar, SigValor),
-  max(Max_value,SigValor,Valor).
+  minimax(([(Turno,Dir,Dist)|ListaPosConFichas],T), SigNivel, false, OtroTurno ,colocar, SigValor),
+  maxCustom(Max_value,SigValor,Valor).
 
 minimax((ListaPosConFichas,T), Depth, false, Turno, colocar, Valor) :-
 
   %Es jugador min
   Min_value is 9999,
   checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  
+  contrincante(Turno,OtroTurno),
+
+  %Si hay molino también hay que expandir en función de las posibilidades.
+  %De sacar la ficha del otro.
+  (hayMolino((Turno,Dir,Dist),ListaPosConFichas) ->
+     removerFicha(ListaPosConFichas,(OtroTurno,DirSel,DistSel),PosicionesSinEsaFicha),
+     ListaPosConFichas is PosicionesSinEsaFicha),
+  
   SigNivel is Depth - 1,
-  minimax(([(Turno,Dir,Dist)|ListaPosConFichas],T), SigNivel, true, Turno ,colocar, SigValor),
+  minimax(([(Turno,Dir,Dist)|ListaPosConFichas],T), SigNivel, true, OtroTurno ,colocar, SigValor),
   max(Min_value,SigValor,Valor).
 
+cantFichas([],_,_).
+cantFichas([(Turno,_,_)|Xs],Turno,Ac) :-
+   Sig is Ac + 1,
+   cantFichas(Xs,MaxFichas,Turno,Sig).
 
-                                           
+%Primera versión) Diferencia entre mis fichas y las de mi oponente.
+%Acá no importan los molinos, porq los conté antes.
+%En el futuro van a importar los casi molinos (2 fichas que están a una  jugada de ser molino)
+heuristica(ListaPosConFichas, T, Turno, colocar, Valor) :-
+   cantFichas(ListaPosConFichas,Turno,Mias),
+   cantFichas(ListaPosConFichas,OtroTurno,DelOtro),
+   Valor is Mias - DelOtro.
