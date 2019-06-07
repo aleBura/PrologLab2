@@ -24,6 +24,15 @@ iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T):-
 contrincante(negro,blanco).
 contrincante(blanco,negro).
 
+direccion(e).
+direccion(w).
+direccion(n).
+direccion(s).
+direccion(ne).
+direccion(se).
+direccion(nw).
+direccion(se).
+
 % --------------------------
 % Loop principal
 % --------------------------
@@ -310,13 +319,18 @@ menosDos(Dist,M) :- M is Dist-2, 1 =< M.
 
 %%% Predicados para ver si hay molino %%%%
 
-hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Ventana) :- (hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana);
-                                                           hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana);
-                                                           hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana)),
+%Lo usa el minimax
+hayMolino(Turno,Dir,Dist,PosicionesConFichas) :-  hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,_,_,false);
+                                                hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,_,_,false);
+                                                hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,_,_,false).
+
+hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Ventana) :- (hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana,true);
+                                                           hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana,true);
+                                                           hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana,true)),
                                                            sformat(Msg, 'Jugador ~w, obtuvo un molino debe eliminar ficha del contrincante', [Turno]),
                                                            gr_estado(Ventana, Msg).
 
-hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
+hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana,HayQueMarcar):-
                                                                     %La posicion que agruegé puede estar al medio, a la izquierda o a la derecha.
                                                                     %Primer caso al medio
                                                                     ((
@@ -340,9 +354,9 @@ hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                                      pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                                     )),
                                                                     mismoJugador(Turno, Turno2, Turno3),
-                                                                    marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
+                                                                    HayQueMarcar -> marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
 
-hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
+hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                           %La posicion que agruegé puede estar al medio, arriba o abajo.
                                                           %Primer caso al medio
                                                           ((
@@ -366,10 +380,10 @@ hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                            pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                           )),
                                                           mismoJugador(Turno, Turno2, Turno3),
-                                                          marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
+                                                          HayQueMarcar -> marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
 
 
-hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
+hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                         %La posicion que agruegé puede estar al medio, arriba o abajo.
                                                         %Primer caso al medio
                                                         ((
@@ -394,7 +408,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana):-
                                                         )),
                                                         (Dir = n; Dir = s; Dir = e; Dir = w), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
-                                                        marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]).
+                                                        HayQueMarcar -> marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -467,7 +481,7 @@ minimax(([(OtroTurno,Dir,Dist)|ListaPosConFichas],T), Depth, _, Turno, colocar, 
    cantFichas(ListaPosConFichas,negro,CantNegras),
    cantFichas(ListaPosConFichas,blanco,CantBlancas),
    (CantNegras = MaxFichas;
-    CantBlancas = MaxFichas);
+    CantBlancas = MaxFichas;
     Depth = 0) ->
         heuristica([(Turno,Dir,Dist)|ListaPosConFichas], T, Turno, colocar, Valor).
 
@@ -475,13 +489,13 @@ minimax((ListaPosConFichas,T), Depth, true, Turno, colocar, Valor) :-
 
   %Es jugador max
   Max_value is -9999,
-  checkTableroValido((Turno,Dir,Dist),ListaPosConFichas),
+  checkTableroValido((Turno,Dir,Dist),ListaPosConFichas,T),
   contrincante(Turno,OtroTurno),
   
   %Si hay molino también hay que expandir en función de las posibilidades.
   %De sacar la ficha del otro.
-  (hayMolino((Turno,Dir,Dist),ListaPosConFichas) ->
-     removerFicha(ListaPosConFichas,(OtroTurno,DirSel,DistSel),PosicionesSinEsaFicha),
+  (hayMolino(Turno,Dir,Dist,ListaPosConFichas) ->
+     removerFicha(ListaPosConFichas,(OtroTurno,_,_),PosicionesSinEsaFicha),
      ListaPosConFichas is PosicionesSinEsaFicha),
 
   SigNivel is Depth - 1,
@@ -498,8 +512,8 @@ minimax((ListaPosConFichas,T), Depth, false, Turno, colocar, Valor) :-
 
   %Si hay molino también hay que expandir en función de las posibilidades.
   %De sacar la ficha del otro.
-  (hayMolino((Turno,Dir,Dist),ListaPosConFichas) ->
-     removerFicha(ListaPosConFichas,(OtroTurno,DirSel,DistSel),PosicionesSinEsaFicha),
+  (hayMolino(Turno,Dir,Dist,ListaPosConFichas) ->
+     removerFicha(ListaPosConFichas,(OtroTurno,_,_),PosicionesSinEsaFicha),
      ListaPosConFichas is PosicionesSinEsaFicha),
   
   SigNivel is Depth - 1,
@@ -509,12 +523,22 @@ minimax((ListaPosConFichas,T), Depth, false, Turno, colocar, Valor) :-
 cantFichas([],_,_).
 cantFichas([(Turno,_,_)|Xs],Turno,Ac) :-
    Sig is Ac + 1,
-   cantFichas(Xs,MaxFichas,Turno,Sig).
+   cantFichas(Xs,Turno,Sig).
+   
+checkTableroValido((_,Dir,Dist),ListaPosConFichas,T) :-
+%Hay que chequear que no se repita y que esté adentro del tablero
+     Dist =< T + 1,
+     direccion(Dir),
+     (pertenece((_,Dir,Dist),ListaPosConFichas) ->
+        false;
+        true).
+     
 
 %Primera versión) Diferencia entre mis fichas y las de mi oponente.
 %Acá no importan los molinos, porq los conté antes.
 %En el futuro van a importar los casi molinos (2 fichas que están a una  jugada de ser molino)
-heuristica(ListaPosConFichas, T, Turno, colocar, Valor) :-
+heuristica(ListaPosConFichas, Turno, colocar, Valor) :-
+   contrincante(Turno,OtroTurno),
    cantFichas(ListaPosConFichas,Turno,Mias),
    cantFichas(ListaPosConFichas,OtroTurno,DelOtro),
    Valor is Mias - DelOtro.
