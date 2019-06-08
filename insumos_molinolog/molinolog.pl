@@ -487,14 +487,18 @@ minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Dept
 
    %Si es un tablero final o si alcancé la máxima profundidad
    MaxFichas is 3*(T+1),
-   cantFichas(Jugada,negro,CantNegras,0),
-   cantFichas(Jugada,blanco,CantBlancas,0),
+   cantFichas(ListaPosConFichas,negro,CantNegras,0),
+   cantFichas(ListaPosConFichas,blanco,CantBlancas,0),
    ((CantNegras \= MaxFichas,
     CantBlancas \= MaxFichas,
     Depth >= 0) -> (
 
      generarTodasLasPosiciones(DistMax,Tablero, []),
-     posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, []),
+     
+     contrincante(Turno,OtroTurno),
+     getMyFichas(ListaPosConFichas,OtroTurno,FichasDelOtro),
+     
+     posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro),
      mejor_jugada(MinMax, Jugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth)
    
    );
@@ -526,9 +530,10 @@ comparar_jugadas(max, _, ValA, MovB, ValB, MovB, ValB) :- ValA <  ValB.
 comparar_jugadas(min, MovA, ValA, _, ValB, MovA, ValA) :- ValA =< ValB.
 comparar_jugadas(min, _, ValA, MovB, ValB, MovB, ValB) :- ValA >  ValB.
 
-posibles_jugadas(_,_,Jugadas,[],Jugadas).
+posibles_jugadas(_,_,Jugadas,[],Jugadas,_).
 
-posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas) :-
+%Fichas del otro se usa para llevar la cuenta de las fichas que le quedan al otro por si hay molino
+posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas, FichasDelOtro) :-
     
   %Se expande para todos los posibles lugares donde puede colocar una ficha
   %Es una posicion del tablero
@@ -536,21 +541,36 @@ posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas) :-
   remover_pos(Tablero,(Dir,Dist),NuevoTablero),
   %Es una posicion libre
   (pertenece((_,Dir,Dist),ListaPosConFichas) ->
-     posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas);
+     posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas,FichasDelOtro);
 
      %Si agregar la nueva posicion genera molino también hay que expandir
      %en función de las posibilidades de sacar la ficha del otro.
-     (hayMolino(Turno,Dir,Dist,ListaPosConFichas,T) ->
+     (hayMolino(Turno,Dir,Dist,ListaPosConFichas,T), noEsVacia(FichasDelOtro) ->
         (
           contrincante(Turno,OtroTurno),
-          removerFicha(ListaPosConFichas,(OtroTurno,_,_),PosicionesSinEsaFicha),
+          primero(FichasDelOtro,(OtroTurno,DirSel,DistSel)),
+          removerFicha(FichasDelOtro, (OtroTurno,DirSel,DistSel), OtroSinEsaFicha),
+          removerFicha(ListaPosConFichas,(OtroTurno,DirSel,DistSel),PosicionesSinEsaFicha),
+
+          %Para considerar efectivamente todas las jugadas (por ejemplo todas las posibles fichas del oponente que puedo sacar).
+          %Hay que volver a agregar esa posición al tablero para pasar de nuevo y elegir otra ficha del oponente.
+          %Por eso le paso "Tablero"
+
           (perteneceLista([(Turno,Dir,Dist)|PosicionesSinEsaFicha], AcJugadas) ->
-             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas);
-             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,[[(Turno,Dir,Dist)|PosicionesSinEsaFicha]|AcJugadas]))
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,Tablero,AcJugadas,OtroSinEsaFicha);
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,Tablero,[[(Turno,Dir,Dist)|PosicionesSinEsaFicha]|AcJugadas],OtroSinEsaFicha))
         );
-        (perteneceLista([(Turno,Dir,Dist)|ListaPosConFichas], AcJugadas) ->
-             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas);
-             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,[[(Turno,Dir,Dist)|ListaPosConFichas]|AcJugadas])
+        
+        %Si no hay molino significa que terminé de procesar ese molino y tengo que restaurar las fichas del otro
+        %Por si aparece un molino más adelante
+
+         contrincante(Turno,OtroTurno),
+         getMyFichas(ListaPosConFichas,OtroTurno,FichasDelOtroRecargado),
+         
+         %Si hay  molino es porque falló la segunda condicion del if
+        (perteneceLista([(Turno,Dir,Dist)|ListaPosConFichas], AcJugadas); hayMolino(Turno,Dir,Dist,ListaPosConFichas,T) ->
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas,FichasDelOtroRecargado);
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,[[(Turno,Dir,Dist)|ListaPosConFichas]|AcJugadas],FichasDelOtroRecargado)
         )
      )
   ).
@@ -578,6 +598,8 @@ cantFichas([(Turno,_,_)|Xs],Turno,Cant,Ac) :-
    !.
    
 cantFichas([(_,_,_)|Xs],Turno,Cant,Ac) :- cantFichas(Xs,Turno,Cant,Ac),!.
+
+noEsVacia([_|_]).
 
 %Primera versión) Diferencia entre mis fichas y las de mi oponente.
 %Acá no importan los molinos, porq los conté antes.
