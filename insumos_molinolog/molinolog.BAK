@@ -354,7 +354,9 @@ hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,Ventana,HayQueMarcar):-
                                                                      pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                                     )),
                                                                     mismoJugador(Turno, Turno2, Turno3),
-                                                                    HayQueMarcar -> marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
+                                                                    HayQueMarcar ->
+                                                                       marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]);
+                                                                       true.
 
 hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                           %La posicion que agruegé puede estar al medio, arriba o abajo.
@@ -380,7 +382,9 @@ hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                            pertenece((Turno3,Y,Dist),PosicionesConFichas)
                                                           )),
                                                           mismoJugador(Turno, Turno2, Turno3),
-                                                          HayQueMarcar -> marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
+                                                          HayQueMarcar ->
+                                                             marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]);
+                                                             true.
 
 
 hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
@@ -408,7 +412,9 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                         )),
                                                         (Dir = n; Dir = s; Dir = e; Dir = w), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
-                                                        HayQueMarcar -> marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]).
+                                                        HayQueMarcar ->
+                                                           marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]);
+                                                           true.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -473,37 +479,39 @@ minimax_depth(3).
 
 minimax((ListaPosConFichas,T), MejorJugada, Turno) :-
    minimax_depth(MaxDepth),
-   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth, []).
+   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth),
+   !.
    
-minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, Jugadas) :-
-   DistMax is T+,
+minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth) :-
+   DistMax is T + 1,
    generarTodasLasPosiciones(DistMax,Tablero, []),
-   posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero),
+   posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, []),
    mejor_jugada(MinMax, Jugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth).
    
-mejor_jugada(max, [], [], -9999, _).
-mejor_jugada(min, [], [], 9999, _).
+mejor_jugada(max, [], [], -9999, _, _, _, _).
+mejor_jugada(min, [], [], 9999, _, _, _, _).
 
 mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth) :-
 
    %Si es un tablero final o si alcancé la máxima profundidad
    MaxFichas is 3*(T+1),
-   cantFichas(ListaPosConFichas,negro,CantNegras),
-   cantFichas(ListaPosConFichas,blanco,CantBlancas),
+   cantFichas(Jugada,negro,CantNegras,0),
+   cantFichas(Jugada,blanco,CantBlancas,0),
    (CantNegras = MaxFichas;
     CantBlancas = MaxFichas;
     Depth = 0) -> (
-
-       heurisitca(Jugada, Turno, Fase, Valor),
+       heuristica(Jugada, Turno, Fase, Valor),
        mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth),
-       comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor)).
+       comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor)
+    );
+    false.
    
-mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, _, T, Depth, Jugadas) :-
-   mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV),
+mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, _, T, Depth) :-
+   mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, _, T, Depth),
    cambiar_max_min(MinMax, Opuesto),
    contrincante(Turno, Otro),
    SigDepth is Depth-1,
-   minimax_step(Opuesto, (Jugada,T), Otro, _, BottomBestV, SigDepth, Jugadas),
+   minimax_step(Opuesto, (Jugada,T), Otro, _, BottomBestV, SigDepth),
    comparar_jugadas(MinMax, Jugada, BottomBestV, ActualMejorJ, ActualMejorV, MejorJugada, MejorValor).
    
 cambiar_max_min(max,min).
@@ -514,29 +522,34 @@ comparar_jugadas(max, _, ValA, MovB, ValB, MovB, ValB) :- ValA <  ValB.
 comparar_jugadas(min, MovA, ValA, _, ValB, MovA, ValA) :- ValA =< ValB.
 comparar_jugadas(min, _, ValA, MovB, ValB, MovB, ValB) :- ValA >  ValB.
 
-posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero) :-
+posibles_jugadas(_,_,Jugadas,[],Jugadas).
+
+posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas) :-
     
   %Se expande para todos los posibles lugares donde puede colocar una ficha
   %Es una posicion del tablero
-  pertenece2((Dir,Dist),Tablero),
+  primero(Tablero,(Dir,Dist)),
   remover_pos(Tablero,(Dir,Dist),NuevoTablero),
   %Es una posicion libre
   (pertenece((_,Dir,Dist),ListaPosConFichas) ->
-     false;
+     posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas);
 
-     %Si agregar la nueva posicioon genera molino también hay que expandir
+     %Si agregar la nueva posicion genera molino también hay que expandir
      %en función de las posibilidades de sacar la ficha del otro.
      (hayMolino(Turno,Dir,Dist,ListaPosConFichas,T) ->
         (
           contrincante(Turno,OtroTurno),
           removerFicha(ListaPosConFichas,(OtroTurno,_,_),PosicionesSinEsaFicha),
-          (perteneceLista([(Turno,Dir,Dist)|PosicionesSinEsaFicha], Jugadas) ->
-             false;
-             posibles_jugadas(Turno, (ListaPosConFichas,T),[[(Turno,Dir,Dist)|PosicionesSinEsaFicha]|Jugadas],NuevoTablero))
+          (perteneceLista([(Turno,Dir,Dist)|PosicionesSinEsaFicha], AcJugadas) ->
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas);
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,[[(Turno,Dir,Dist)|PosicionesSinEsaFicha]|AcJugadas]))
         );
-        (perteneceLista([(Turno,Dir,Dist)|ListaPosConFichas], Jugadas) ->
-           false;
-           posibles_jugadas(Turno, (ListaPosConFichas,T), [[(Turno,Dir,Dist)|ListaPosConFichas]|Jugadas],NuevoTablero)))).
+        (perteneceLista([(Turno,Dir,Dist)|ListaPosConFichas], AcJugadas) ->
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas);
+             posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,[[(Turno,Dir,Dist)|ListaPosConFichas]|AcJugadas])
+        )
+     )
+  ).
        
 % pertenece(?X,?L) ← X pertenece a la lista L
 perteneceLista(X,[X|_]).
@@ -551,16 +564,22 @@ remover_pos_accu([E|T],E,Ac,SinE) :- remover_pos_accu(T,E,Ac,SinE),!.
 remover_pos_accu([X|T],E,Ac,SinE) :- concatenacion(Ac,[X],C),
                                      remover_pos_accu(T,E,C,SinE).
 
-cantFichas([],_,_).
-cantFichas([(Turno,_,_)|Xs],Turno,Ac) :-
+% primero(?L,?X) ← X es el primer elemento de la lista L
+primero([X|_],X).
+
+cantFichas([],_,Ac,Ac).
+cantFichas([(Turno,_,_)|Xs],Turno,Cant,Ac) :-
    Sig is Ac + 1,
-   cantFichas(Xs,Turno,Sig).
+   cantFichas(Xs,Turno,Cant,Sig),
+   !.
+   
+cantFichas([(_,_,_)|Xs],Turno,Cant,Ac) :- cantFichas(Xs,Turno,Cant,Ac),!.
 
 %Primera versión) Diferencia entre mis fichas y las de mi oponente.
 %Acá no importan los molinos, porq los conté antes.
 %En el futuro van a importar los casi molinos (2 fichas que están a una  jugada de ser molino)
 heuristica(ListaPosConFichas, Turno, colocar, Valor) :-
    contrincante(Turno,OtroTurno),
-   cantFichas(ListaPosConFichas,Turno,Mias),
-   cantFichas(ListaPosConFichas,OtroTurno,DelOtro),
+   cantFichas(ListaPosConFichas,Turno,Mias,0),
+   cantFichas(ListaPosConFichas,OtroTurno,DelOtro,0),
    Valor is Mias - DelOtro.
