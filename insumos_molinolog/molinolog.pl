@@ -484,28 +484,32 @@ minimax((ListaPosConFichas,T), MejorJugada, Turno) :-
    
 minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth) :-
    DistMax is T + 1,
-   generarTodasLasPosiciones(DistMax,Tablero, []),
-   posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, []),
-   mejor_jugada(MinMax, Jugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth).
+
+   %Si es un tablero final o si alcancé la máxima profundidad
+   MaxFichas is 3*(T+1),
+   cantFichas(Jugada,negro,CantNegras,0),
+   cantFichas(Jugada,blanco,CantBlancas,0),
+   ((CantNegras \= MaxFichas,
+    CantBlancas \= MaxFichas,
+    Depth >= 0) -> (
+
+     generarTodasLasPosiciones(DistMax,Tablero, []),
+     posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, []),
+     mejor_jugada(MinMax, Jugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth)
+   
+   );
+     false
+   ).
    
 mejor_jugada(max, [], [], -9999, _, _, _, _).
 mejor_jugada(min, [], [], 9999, _, _, _, _).
 
 mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth) :-
 
-   %Si es un tablero final o si alcancé la máxima profundidad
-   MaxFichas is 3*(T+1),
-   cantFichas(Jugada,negro,CantNegras,0),
-   cantFichas(Jugada,blanco,CantBlancas,0),
-   (CantNegras = MaxFichas;
-    CantBlancas = MaxFichas;
-    Depth = 0) -> (
-       heuristica(Jugada, Turno, Fase, Valor),
-       mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth),
-       comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor)
-    );
-    false.
-   
+   heuristica(Jugada, Turno, Fase, Valor),
+   mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth),
+   comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor).
+
 mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, _, T, Depth) :-
    mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, _, T, Depth),
    cambiar_max_min(MinMax, Opuesto),
