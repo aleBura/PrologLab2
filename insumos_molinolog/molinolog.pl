@@ -510,7 +510,7 @@ mejor_jugada(min, [], [], 9999, _, _, _, _).
 
 mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth) :-
 
-   heuristica(Jugada, Turno, Fase, Valor),
+   heuristica(Jugada, Turno, Fase, Valor, T),
    mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth),
    comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor).
 
@@ -603,9 +603,35 @@ noEsVacia([_|_]).
 
 %Primera versión) Diferencia entre mis fichas y las de mi oponente.
 %Acá no importan los molinos, porq los conté antes.
-%En el futuro van a importar los casi molinos (2 fichas que están a una  jugada de ser molino)
-heuristica(ListaPosConFichas, Turno, colocar, Valor) :-
+%Importan los casi molinos (2 fichas que están a una  jugada de ser molino)
+%Importan más los de mi oponente, porq en su turno va a completar ese molino.
+
+heuristica(ListaPosConFichas, Turno, colocar, Valor, T) :-
    contrincante(Turno,OtroTurno),
+   DistMax is T+1,
+   generarTodasLasPosiciones(DistMax,Tablero, []),
+   
+   casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,0),
+   casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosOtro,0),
    cantFichas(ListaPosConFichas,Turno,Mias,0),
    cantFichas(ListaPosConFichas,OtroTurno,DelOtro,0),
-   Valor is Mias - DelOtro.
+   %Se ponderan las distintas situaciones
+   Valor is (Mias - DelOtro) + 2*CasiMolinosMios - 3*CasiMolinosOtro.
+
+%Se generan todas las posiciones del tablero, luego para cada posición se simula
+%que exista una ficha y se ve si hay molinos (en ese caso tengo un "casi molino")
+
+casiMolinos([],_,_,_,Ac,Ac).
+
+casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,Ac) :-
+
+  primero(Tablero,(Dir,Dist)),
+  remover_pos(Tablero,(Dir,Dist),NuevoTablero),
+  %Es una posicion libre
+  (pertenece((_,Dir,Dist),ListaPosConFichas) ->
+     casiMolinos(NuevoTablero,T,ListaPosConFichas,Turno,CasiMolinosMios,Ac);
+     (hayMolino(Turno,Dir,Dist,ListaPosConFichas,T) ->
+         Sig is Ac+1;
+         Sig is Ac),
+     casiMolinos(NuevoTablero,T,ListaPosConFichas,Turno,CasiMolinosMios,Sig)
+  ).
