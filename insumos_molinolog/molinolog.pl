@@ -33,17 +33,34 @@ direccion(se).
 direccion(nw).
 direccion(se).
 
+dibujarJugada(PosicionesConFichas,Visual,T) :-
+   convertirFormato(PosicionesConFichas,Fichas),
+   gr_dibujar_tablero(Visual,T,Fichas).
+
 % --------------------------
 % Loop principal
 % --------------------------
 
 loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados) :-
+  contrincante(Turno,OtroTurno),
   (TurnosPasados < 3 * (T + 1)) -> (
     actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados),
-    gr_evento(Visual,E),
-    evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
-  )
-  ;
+    (
+     ((Turno = negro, JugadorNegro = humano); (Turno = blanco, JugadorBlanco = humano)) ->
+       (gr_evento(Visual,E),
+         evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
+       );
+       (
+         minimax((PosicionesConFichas,T),MejorJugada,Turno),
+         dibujarJugada(MejorJugada,Visual,T),
+         (
+          (esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1));
+          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados)
+         )
+       )
+    )
+  );
+  
   (sformat(Msg, 'Finalizó la fase colocar, el jugador ~w alcanzó el máximo de fichas para este tablero. Comenzará la fase mover, iniciando el jugador negro.', [Turno]),
   gr_mensaje(Visual,Msg),
   loop(Visual,negro,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)).
