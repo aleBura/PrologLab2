@@ -55,7 +55,7 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
          dibujarJugada(MejorJugada,Visual,T),
          (
           (esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1));
-          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados)
+          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1)
          )
        )
     )
@@ -629,7 +629,7 @@ heuristica(ListaPosConFichas, Turno, colocar, Valor, T) :-
    generarTodasLasPosiciones(DistMax,Tablero, []),
    
    casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,0),
-   casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosOtro,0),
+   casiMolinos(Tablero,T,ListaPosConFichas,OtroTurno,CasiMolinosOtro,0),
    cantFichas(ListaPosConFichas,Turno,Mias,0),
    cantFichas(ListaPosConFichas,OtroTurno,DelOtro,0),
    %Se ponderan las distintas situaciones

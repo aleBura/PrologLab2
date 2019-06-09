@@ -53,8 +53,10 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
        (
          minimax((PosicionesConFichas,T),MejorJugada,Turno),
          dibujarJugada(MejorJugada,Visual,T),
-         (esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1));
-         loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados)
+         (
+          (esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1));
+          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1)
+         )
        )
     )
   );
