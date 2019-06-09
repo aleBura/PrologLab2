@@ -51,11 +51,14 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
          evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
        );
        (
-         minimax((PosicionesConFichas,T),MejorJugada,Turno),
+         %Solo para que se vea mejor el juego
+         sleep(2),
+         minimax((PosicionesConFichas,T),MejorJugada,Turno,colocar),
          dibujarJugada(MejorJugada,Visual,T),
+         cantFichas(MejorJugada,OtroTurno,CantOtro,0),
          (
-          (esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1));
-          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados+1)
+          %(esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,CantOtro));
+          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,CantOtro)
          )
        )
     )
@@ -71,19 +74,30 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
   generarTodasLasPosiciones(DistMax,TodasLasPosiciones,[]),
   hayMovimientosValidos(Turno,PosicionesConFichas,PosicionesConFichas,TodasLasPosiciones) -> (
     actualizarMensajeInferior(Turno,mover,Visual),
-    gr_evento(Visual,E),
-    ((esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas))
-    ;
-      primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
-    )
-    %Pueden mover solo a posiciones adyacentes
-    %Se controla que la posicion esté vacia y sea adyacente
-    %Se controla si se forma molino
-    %Cuando alguno de los 2 queda con 2 fichas  termina el juego
-
+    (
+    ((Turno = negro, JugadorNegro = humano); (Turno = blanco, JugadorBlanco = humano)) ->
+    (
+        gr_evento(Visual,E),
+        (
+          (esSalirOReiniciar(E), evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas));
+          primerClick(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
+        )
+        %Pueden mover solo a posiciones adyacentes
+        %Se controla que la posicion esté vacia y sea adyacente
+        %Se controla si se forma molino
+        %Cuando alguno de los 2 queda con 2 fichas  termina el juego
+    );
+    (
+         %Solo para que se vea mejor el juego
+         sleep(2),
+         minimax((PosicionesConFichas,T),MejorJugada,Turno,mover),
+         dibujarJugada(MejorJugada,Visual,T),
+         contrincante(Turno,SiguienteTurno),
+         loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)
+    ))
   );
-    gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
     contrincante(Turno,SiguienteTurno),
+    gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
     loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
 
 generarTodasLasPosiciones(0,Ac,Ac):- true.
@@ -215,20 +229,22 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
              %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
              gr_ficha(Visual,T,Dir,Dist,Turno),
              contrincante(Turno,SiguienteTurno),
+             cantFichas(PosicionesSinEsaFicha,SiguienteTurno,CantOtro,0),
              (
-              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],TurnosPasados))
+              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],CantOtro))
               ;
-              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],TurnosPasados+1)
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],CantOtro)
              )
 
            );
            % Else no hay molino
            (
              contrincante(Turno,SiguienteTurno),
+             cantFichas(PosicionesConFichas,SiguienteTurno,CantOtro,0),
             (
-              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],TurnosPasados))
+              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],CantOtro))
               ;
-              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],TurnosPasados+1)
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],CantOtro)
              )
            ).
 
@@ -430,7 +446,7 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                         (Dir = n; Dir = s; Dir = e; Dir = w), %Para descartar molinos diagonales
                                                         mismoJugador(Turno, Turno2, Turno3),
                                                         (HayQueMarcar ->
-                                                           marcarMolino(Ventana,T,[(Dir,Dist),(X,Dist),(Y,Dist)]);
+                                                           marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]);
                                                            true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -494,7 +510,7 @@ getMyFichas([(_,_,_)|Xs],Turno,L) :- getMyFichas(Xs,Turno,L).
 % El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
 minimax_depth(3).
 
-minimax((ListaPosConFichas,T), MejorJugada, Turno) :-
+minimax((ListaPosConFichas,T), MejorJugada, Turno, colocar) :-
    minimax_depth(MaxDepth),
    minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth),
    !.
@@ -506,8 +522,7 @@ minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Dept
    MaxFichas is 3*(T+1),
    cantFichas(ListaPosConFichas,negro,CantNegras,0),
    cantFichas(ListaPosConFichas,blanco,CantBlancas,0),
-   ((CantNegras \= MaxFichas,
-    CantBlancas \= MaxFichas,
+   (( ((CantNegras \= MaxFichas, Turno = negro); (CantBlancas \= MaxFichas, Turno = blanco)),
     Depth >= 0) -> (
 
      generarTodasLasPosiciones(DistMax,Tablero, []),
@@ -516,7 +531,9 @@ minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Dept
      getMyFichas(ListaPosConFichas,OtroTurno,FichasDelOtro),
      
      posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro),
-     mejor_jugada(MinMax, Jugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth)
+     %Para que no eliga siempre la misma si hay varias del mismo valor
+     randomOrder(Jugadas, RandomOrderJugadas, []),
+     mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth)
    
    );
      false
@@ -618,11 +635,16 @@ cantFichas([(_,_,_)|Xs],Turno,Cant,Ac) :- cantFichas(Xs,Turno,Cant,Ac),!.
 
 noEsVacia([_|_]).
 
+randomOrder([],Ac,Ac).
+
+randomOrder(L,ListaRandom,Ac) :-
+   random_select(X,L,ListaSinJugada),
+   randomOrder(ListaSinJugada,ListaRandom,[X|Ac]).
+
 %Primera versión) Diferencia entre mis fichas y las de mi oponente.
-%Acá no importan los molinos, porq los conté antes.
 %Importan los casi molinos (2 fichas que están a una  jugada de ser molino)
 %Importan más los de mi oponente, porq en su turno va a completar ese molino.
-
+%Acá no importan los molinos, porq los conté antes. En la diferencia de la cantidad de piezas.
 heuristica(ListaPosConFichas, Turno, colocar, Valor, T) :-
    contrincante(Turno,OtroTurno),
    DistMax is T+1,
@@ -630,14 +652,14 @@ heuristica(ListaPosConFichas, Turno, colocar, Valor, T) :-
    
    casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,0),
    casiMolinos(Tablero,T,ListaPosConFichas,OtroTurno,CasiMolinosOtro,0),
+   %cantMolinos(T,ListaPosConFichas,ListaPosConFichas,Turno,MolinosMios,0),
    cantFichas(ListaPosConFichas,Turno,Mias,0),
    cantFichas(ListaPosConFichas,OtroTurno,DelOtro,0),
    %Se ponderan las distintas situaciones
-   Valor is (Mias - DelOtro) + 2*CasiMolinosMios - 3*CasiMolinosOtro.
+   Valor is 4*(Mias - DelOtro) + 2*CasiMolinosMios - 3*CasiMolinosOtro.
 
 %Se generan todas las posiciones del tablero, luego para cada posición se simula
 %que exista una ficha y se ve si hay molinos (en ese caso tengo un "casi molino")
-
 casiMolinos([],_,_,_,Ac,Ac).
 
 casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,Ac) :-
