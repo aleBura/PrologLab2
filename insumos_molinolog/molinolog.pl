@@ -104,7 +104,7 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
                  true
             );
             %perdio el negro
-            gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+            gr_opciones(Visual, 'Fin del juego, jugador blanco ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
                iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
                true
          )
