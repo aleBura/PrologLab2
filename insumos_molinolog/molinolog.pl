@@ -78,6 +78,9 @@ finDelJuego(Turno,[(_,_,_)|Xs],Cant,Ac) :- finDelJuego(Turno,Xs,Cant,Ac).
 %esJugadorNegro(+Turno) <- Es jugador negro
 esJugadorNegro(negro).
 
+%esJugadorBlanco(+Turno) <- Es jugador blanco
+esJugadorBlanco(blanco).
+
 
 %hayFicha(+Dir,+Dist,+ListaPosicionesConFichas) <- En la lista hay una posicion con Dir y Dist
 hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesConFichas).
@@ -323,17 +326,19 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
        (
          %Solo para que se vea mejor el juego
          sleep(2),
-         minimax((PosicionesConFichas,T),MejorJugada,Turno,colocar),
+         minimax((PosicionesConFichas,T),MejorJugada,Turno,colocar,TurnosPasados),
          dibujarJugada(MejorJugada,Visual,T),
-         cantFichas(MejorJugada,OtroTurno,CantOtro,0),
          (
-          %(esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,CantOtro));
-          loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,CantOtro)
+          (
+            esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados)
+          );
+            TurnosPasadosMasUno is TurnosPasados + 1,
+            loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasadosMasUno)
          )
        )
     )
   );
-  
+
   (sformat(Msg, 'Finalizó la fase colocar, el jugador ~w alcanzó el máximo de fichas para este tablero. Comenzará la fase mover, iniciando el jugador negro.', [Turno]),
   gr_mensaje(Visual,Msg),
   loop(Visual,negro,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas)).
@@ -394,7 +399,7 @@ primerClick(click(DirSel,DistSel), Visual, Turno, JugadorNegro, JugadorBlanco, T
        gr_mensaje(Visual,'Seleccionó  una posición incorrecta, vuelva a intentarlo.'),
        gr_evento(Visual,E),
        primerClick(E, Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, PosicionesConFichas).
-    
+
 evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, PosicionesConFichas, DirSel, DistSel) :-
 %Segundo click seleccionó el lugar a donde mover
 %Hay que ver si la posición seleccionada para mover es válida, en caso de que no lo sea vuelve al primer click.
@@ -629,12 +634,17 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
 % El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
 minimax_depth(3).
 
-minimax((ListaPosConFichas,T), MejorJugada, Turno, Fase) :-
+minimax((ListaPosConFichas,T), MejorJugada, Turno, mover) :-
    minimax_depth(MaxDepth),
-   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth, Fase),
+   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth, mover, _),
    !.
 
-minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, mover) :-
+minimax((ListaPosConFichas,T), MejorJugada, Turno, colocar, TurnosPasados) :-
+   minimax_depth(MaxDepth),
+   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth, colocar, TurnosPasados),
+   !.
+
+minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, mover, _) :-
    DistMax is T + 1,
 
    %Si es un tablero final o si alcancé la máxima profundidad
@@ -649,57 +659,46 @@ minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Dept
      %Devuelve una lista con las posiciones adyacentes para cada posicion del tablero
      generarAdyacentes(Tablero, Tablero, ListaAdyacentes, []),
      reversoConAccu(ListaAdyacentes,[],RevListaAdyacentes),
-     
+
      posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro, mover, RevListaAdyacentes),
      %Para que no eliga siempre la misma si hay varias del mismo valor
      randomOrder(Jugadas, RandomOrderJugadas, []),
-     mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, mover, T, Depth)
+     mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, mover, T, Depth, 0)
 
    );
      false
    ).
-   
-minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, colocar) :-
-   DistMax is T + 1,
 
-   %Si es un tablero final o si alcancé la máxima profundidad
-   MaxFichas is 3*(T+1),
-   cantFichas(ListaPosConFichas,negro,CantNegras,0),
-   cantFichas(ListaPosConFichas,blanco,CantBlancas,0),
-   (( ((CantNegras \= MaxFichas, Turno = negro); (CantBlancas \= MaxFichas, Turno = blanco)),
-    Depth >= 0) -> (
+minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, colocar, TurnosPasados) :-
+  %Si es un tablero final o si alcancé la máxima profundidad
+  ((DistMax is T + 1,MaxFichas is 3*(T+1),(TurnosPasados \= MaxFichas; esJugadorBlanco(Turno)), Depth >= 0) -> (
+    generarTodasLasPosiciones(DistMax,Tablero, []),
+    contrincante(Turno,OtroTurno),
+    getMyFichas(ListaPosConFichas,OtroTurno,FichasDelOtro),
+    posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro, colocar),
+    %Para que no eliga siempre la misma si hay varias del mismo valor
+    randomOrder(Jugadas, RandomOrderJugadas, []),
+    mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth, TurnosPasados)
+  );
+    false
+  ).
 
-     generarTodasLasPosiciones(DistMax,Tablero, []),
-     
-     contrincante(Turno,OtroTurno),
-     getMyFichas(ListaPosConFichas,OtroTurno,FichasDelOtro),
-     
-     posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro, colocar),
-     %Para que no eliga siempre la misma si hay varias del mismo valor
-     randomOrder(Jugadas, RandomOrderJugadas, []),
-     mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth)
-   
-   );
-     false
-   ).
-   
-mejor_jugada(max, [], [], -9999, _, _, _, _).
-mejor_jugada(min, [], [], 9999, _, _, _, _).
+mejor_jugada(max, [], [], -9999, _, _, _, _, _).
+mejor_jugada(min, [], [], 9999, _, _, _, _, _).
 
-mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth) :-
+mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, 0, TurnosPasados) :-
+  heuristica(Jugada, Turno, Fase, Valor, T),
+  mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, 0, TurnosPasados),
+  comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor).
 
-   heuristica(Jugada, Turno, Fase, Valor, T),
-   mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth),
-   comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor).
+mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth, TurnosPasados) :-
+  mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth, TurnosPasados),
+  cambiar_max_min(MinMax, Opuesto),
+  contrincante(Turno, Otro),
+  SigDepth is Depth-1,
+  minimax_step(Opuesto, (Jugada,T), Otro, _, BottomBestV, SigDepth, Fase, TurnosPasados),
+  comparar_jugadas(MinMax, Jugada, BottomBestV, ActualMejorJ, ActualMejorV, MejorJugada, MejorValor).
 
-mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth) :-
-   mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth),
-   cambiar_max_min(MinMax, Opuesto),
-   contrincante(Turno, Otro),
-   SigDepth is Depth-1,
-   minimax_step(Opuesto, (Jugada,T), Otro, _, BottomBestV, SigDepth, Fase),
-   comparar_jugadas(MinMax, Jugada, BottomBestV, ActualMejorJ, ActualMejorV, MejorJugada, MejorValor).
-   
 cambiar_max_min(max,min).
 cambiar_max_min(min,max).
 
