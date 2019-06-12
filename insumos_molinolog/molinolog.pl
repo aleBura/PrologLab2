@@ -4,6 +4,292 @@
 % entender el uso de graficos.pl
 % El contenido de este archivo se puede modificar.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PREDICADOS AUXILIARES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%contrincante(+Turno,?OtroTurno) <- OtroTurno es el color del adversario
+contrincante(negro,blanco).
+contrincante(blanco,negro).
+
+
+%direccion(+Direccion) <- Direccion es una direccón válida
+direccion(e).
+direccion(w).
+direccion(n).
+direccion(s).
+direccion(ne).
+direccion(se).
+direccion(nw).
+direccion(se).
+
+
+%dibujarJugada(+PosicionesConFichas, +Visual, +T) <- Dibuja todas las posiciones
+%(Turno, Dir, Dist) pertenecientes a la lista PosicionesConFichas en el tablero Visual de tamaño T
+dibujarJugada(PosicionesConFichas,Visual,T) :-
+   convertirFormato(PosicionesConFichas,Fichas),
+   gr_dibujar_tablero(Visual,T,Fichas).
+
+
+%generarTodasLasPosiciones(+DistMax, ?TodasLasPosiciones, +Ac) <- Genera todas las posiciones de un
+% tablero cuya máxima distancia es DistMax, Ac  es el acumulador y debe invocarse como []
+generarTodasLasPosiciones(0,Ac,Ac):- true.
+generarTodasLasPosiciones(DistMax,TodasLasPosiciones,Ac) :-
+  DistMax > 0,
+  concatenacion([(nw,DistMax),(n,DistMax),(ne,DistMax),(e,DistMax),(se,DistMax),(s,DistMax),(sw,DistMax),(w,DistMax)], Ac, NuevasPos),
+  !,
+  Siguiente is DistMax - 1,
+  generarTodasLasPosiciones(Siguiente,TodasLasPosiciones,NuevasPos).
+
+%hayMovimientosValidos(+Turno, +IteradorPosiciones, +PosicionesConFichas, +PosicionesDelTablero) <- Para alguna de las posiciones
+%con fichas mías hay una posicion adyacente vacía en el tablero.
+hayMovimientosValidos(Turno, [(Turno,Dir, Dist)|_], PosicionesConFichas, PosicionesDelTablero) :-
+                                                                         pertenece2((X,Y),PosicionesDelTablero),
+                                                                         adyacentes(Dir, Dist, X, Y),
+                                                                         (pertenece((_,X,Y),PosicionesConFichas) -> false;
+                                                                                                                   true).
+hayMovimientosValidos(Turno, [(_,_,_)|PosicionesConFichasIter], PosicionesConFichas, PosicionesDelTablero) :-
+   hayMovimientosValidos(Turno,PosicionesConFichasIter, PosicionesConFichas, PosicionesDelTablero).
+
+
+%esSalirOReiniciar(+Evento) <- El evento es del tipo salir o reiniciar
+esSalirOReiniciar(salir).
+esSalirOReiniciar(reiniciar).
+
+
+%adyacentes(+DirA, +DistA, +DirB, +DisB) <- Las  posiciones A y B son adyacentes
+%Son adyacentes si tienen una diferencia de distancia 1 y la misma direcccion
+%O diferencia de distancia 0 y direcciones pegadas (arriba, abajo, izq, der)
+adyacentes(Dir, Dist, DirSel, DistSel) :-
+    Resta is Dist - DistSel,
+    abs(Resta,Abs),
+    ((Abs = 1, Dir = DirSel, medio(Dir));
+     (Abs = 0 ,(izquierda(Dir,DirSel); derecha(Dir,DirSel); arriba(Dir,DirSel); abajo(Dir,DirSel)))
+    ).
+
+
+%finDelJuego(+Turno,+ListaPosiciones,?Cant,+Ac) <- De vuelve la cantidad  de posiciones del jugador Turno en la lista
+finDelJuego(_,[],Ac,Ac).
+finDelJuego(Turno,[(Turno,_,_)|Xs],Cant,Ac) :- Sum is Ac + 1,
+                                               finDelJuego(Turno,Xs,Cant,Sum),
+                                               !.
+finDelJuego(Turno,[(_,_,_)|Xs],Cant,Ac) :- finDelJuego(Turno,Xs,Cant,Ac).
+
+
+%esJugadorNegro(+Turno) <- Es jugador negro
+esJugadorNegro(negro).
+
+
+%hayFicha(+Dir,+Dist,+ListaPosicionesConFichas) <- En la lista hay una posicion con Dir y Dist
+hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesConFichas).
+
+
+% pertenece(?X,?L) ← X pertenece a la lista L
+pertenece((X,Y,Z),[(X,Y,Z)|_]).
+pertenece((X,Y,Z),[_|Ys]) :- pertenece((X,Y,Z),Ys).
+
+
+% pertenece2(?X,?L) ← X pertenece a la lista L
+pertenece2((X,Y),[(X,Y)|_]).
+pertenece2((X,Y),[_|Ys]) :- pertenece2((X,Y),Ys).
+
+
+
+% largo(+L,?N) ← N es el largo de la lista L.
+largo([],0).
+largo([_|Xs],N):- largo(Xs,M),
+                  N is M+1.
+
+
+% tres jugadores distintos son el mismo.
+mismoJugador(blanco,blanco,blanco).
+mismoJugador(negro,negro,negro).
+
+
+% marca un molino en el tablero, el molino viene dado en la lista de fichas.
+marcarMolino(_, _, []).
+marcarMolino(Ventana, T, [(Dir,Dist)|Xs]) :- gr_ficha(Ventana, T, Dir, Dist, "seleccion"),
+                                             marcarMolino(Ventana, T, Xs).
+
+
+% actualiza el mensaje en la parte inferior del tablero
+actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados) :- Cant is (3*(T+1)-TurnosPasados),
+                                                                  sformat(Msg, 'Jugador ~w, fase colocar (restan colocar ~w fichas)', [Turno,Cant]),
+                                                                  gr_estado(Visual, Msg).
+actualizarMensajeInferior(Turno,mover,capturar,Visual) :- sformat(Msg, 'Jugador ~w, capturar', [Turno]), gr_estado(Visual, Msg).
+actualizarMensajeInferior(Turno,mover,Visual) :- sformat(Msg, 'Jugador ~w, mover', [Turno]), gr_estado(Visual, Msg).
+
+
+%Elimina una ficha del rival seleccionada mediante un click. PosicionesSinEsaFicha es la  lista sin
+%la ficha removida.
+eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha) :-
+               posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) ->
+               (
+                 contrincante(Turno,OtroJugador),
+                 removerFicha(PosicionesConFichas,(OtroJugador,Dir,Dist),PosicionesSinEsaFicha),
+                 convertirFormato(PosicionesSinEsaFicha,Fichas),
+                 gr_dibujar_tablero(Visual,T,Fichas)
+               );
+                gr_mensaje(Visual,'La posición seleccionada no contiene una ficha de su rival.'),
+                gr_evento(Visual, E), %Espero por el siguiente click
+                eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha).
+
+
+%La posicion Dir,Dist es de mi adversario.
+posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) :-
+               contrincante(Turno,OtroJugador),
+               pertenece((OtroJugador,Dir,Dist),PosicionesConFichas).
+
+
+% removerFicha(+L,?E,?LSinE) ← LSinE es la lista L sin ninguna ocurrencia del elemento E.
+removerFicha(L,E,LSinE) :- sin_elem_accu(L,E,[],LSinE).
+
+
+% sin_elem_accu(?L,?E,+Ac,?SinE) ← La lista SinE es la lista L sin E. Ac es el acumulador e inicialmente debe ser []
+sin_elem_accu([],_,Ac,Ac).
+sin_elem_accu([(Tipo,Dir,Dist)|T],(Tipo,Dir,Dist),Ac,SinE) :- sin_elem_accu(T,(Tipo,Dir,Dist),Ac,SinE),!.
+sin_elem_accu([(J,X,Y)|T],(Tipo,Dir,Dist),Ac,SinE) :- concatenacion(Ac,[(J,X,Y)],C),
+                                                   sin_elem_accu(T,(Tipo,Dir,Dist),C,SinE).
+
+
+% concatenacion(?L1,?L2,?L) ← La lista L es la concatenación de L1 con L2.
+concatenacion([],X,X).
+concatenacion(X,[],X).
+concatenacion([X|Xs],L2,[X|L]) :- concatenacion(Xs,L2,L).
+
+
+%Convierte el orden de los parametros que determinan una poscion para que se puedan usar los
+%predicados de gráficos.
+convertirFormato([],[]).
+convertirFormato([(Tipo,Dir,Dist)|Xs],[ficha(Tipo,Dir,Dist)|Xs2]) :- convertirFormato(Xs,Xs2).
+
+
+%Dada una lista de fichas obtiene las del Turno
+getMyFichas([],_,[]).
+getMyFichas([(Turno,Dir,Dist)|Xs],Turno,[(Turno,Dir,Dist)|Ys]) :- getMyFichas(Xs,Turno,Ys),!.
+getMyFichas([(_,_,_)|Xs],Turno,L) :- getMyFichas(Xs,Turno,L).
+
+
+% pertenece(?X,?L) ← X pertenece a la lista L
+perteneceLista(X,[X|_]).
+perteneceLista(X,[_|Ys]) :- perteneceLista(X,Ys).
+
+
+% remover_pos(+L,?E,?LSinE) ← LSinE es la lista L sin ninguna ocurrencia del elemento E.
+remover_pos(L,E,LSinE) :- remover_pos_accu(L,E,[],LSinE).
+
+
+% remover_pos_accu(?L,?E,+Ac,?SinE) ← La lista SinE es la lista L sin E. Ac es el acumulador e inicialmente debe ser []
+remover_pos_accu([],_,Ac,Ac).
+remover_pos_accu([E|T],E,Ac,SinE) :- remover_pos_accu(T,E,Ac,SinE),!.
+remover_pos_accu([X|T],E,Ac,SinE) :- concatenacion(Ac,[X],C),
+                                     remover_pos_accu(T,E,C,SinE).
+
+
+% primero(?L,?X) ← X es el primer elemento de la lista L
+primero([X|_],X).
+
+
+% La cantidad de fichas de ese turno en la lista
+cantFichas([],_,Ac,Ac).
+cantFichas([(Turno,_,_)|Xs],Turno,Cant,Ac) :-
+   Sig is Ac + 1,
+   cantFichas(Xs,Turno,Cant,Sig),
+   !.
+   
+cantFichas([(_,_,_)|Xs],Turno,Cant,Ac) :- cantFichas(Xs,Turno,Cant,Ac),!.
+
+
+
+% reversoConAccu(?L,+Ac,?Rev) ← La lista Rev es la lista L invertida. Ac es el acumulador e inicialmente debe ser []
+reversoConAccu([],Ac,Ac).
+reversoConAccu([H|T],Ac,Rev) :- reversoConAccu(T,[H|Ac],Rev).
+
+
+% genera la lista con listas de posiciones adyacentes para cada posicion del tablero
+generarAdyacentes([],_,Ac,Ac).
+
+generarAdyacentes([(Dir,Dist)|RestoTablero], Tablero, ListaAdyacentes, Ac) :-
+  generarAdyacentesPosicion((Dir,Dist), Tablero, AdyacentesPos, []),
+  generarAdyacentes(RestoTablero, Tablero, ListaAdyacentes, [AdyacentesPos|Ac]).
+
+
+% genera la lista de  posiciones adyacentes para una posicion del tablero
+generarAdyacentesPosicion((_,_),[],Ac,Ac).
+
+generarAdyacentesPosicion((Dir,Dist), Tablero, ListaAdyacentes, Ac) :-
+   primero(Tablero,(X,Y)),
+   remover_pos(Tablero,(X,Y),NuevoTablero),
+   (adyacentes(Dir, Dist, X, Y) ->
+      generarAdyacentesPosicion((Dir,Dist), NuevoTablero, ListaAdyacentes, [(X,Y)|Ac]);
+      generarAdyacentesPosicion((Dir,Dist), NuevoTablero, ListaAdyacentes, Ac)
+   ).
+
+
+% lista no vacia
+noEsVacia([_|_]).
+
+
+% ordena de forma random una lista
+randomOrder([],Ac,Ac).
+
+randomOrder(L,ListaRandom,Ac) :-
+   random_select(X,L,ListaSinJugada),
+   randomOrder(ListaSinJugada,ListaRandom,[X|Ac]).
+
+%%%%%% Predicados de navegacion por el tablero %%%%%%%
+
+%La segunda poscicion esta a la izquierda de la primera
+izquierda(s,sw).
+izquierda(se,s).
+izquierda(n,nw).
+izquierda(ne,n).
+
+dobleIzquierda(ne,nw).
+dobleIzquierda(se,sw).
+
+%La segunda posicion esta a la derecha de la primera
+derecha(n,ne).
+derecha(nw,n).
+derecha(s,se).
+derecha(sw,s).
+
+dobleDerecha(nw,ne).
+dobleDerecha(sw,se).
+
+%La segunda posicion esta arriba de la primera
+arriba(sw,w).
+arriba(w,nw).
+arriba(se,e).
+arriba(e,ne).
+
+dobleArriba(sw,nw).
+dobleArriba(se,ne).
+
+%La segunda posicion esta abajo de la primera
+abajo(nw,w).
+abajo(w,sw).
+abajo(ne,e).
+abajo(e,se).
+
+dobleAbajo(nw,sw).
+dobleAbajo(ne,se).
+
+medio(s).
+medio(n).
+medio(w).
+medio(e).
+
+% El concepto de arriba, abajo, izquierda y derecha
+% en las filas y columnas del medio es por la distancia
+% ademas pueden ser de largo variable
+
+masUno(Dist,M,Max) :- M is Dist+1, M =< Max.
+masDos(Dist,M,Max) :- M is Dist+2, M =< Max.
+menosUno(Dist,M) :- M is Dist-1, 1 =< M.
+menosDos(Dist,M) :- M is Dist-2, 1 =< M.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % molinolog(+JugadorNegro,+JugadorBlanco,+T)
 % JugadorNegtro y JugadorBlanco pueden ser los átomos humano o maquina.
 % T es el tamaño del tablero.
@@ -20,22 +306,6 @@ molinolog(JugadorNegro,JugadorBlanco,T) :-
 iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T):-
     gr_dibujar_tablero(Visual,T,[]),
     loop(Visual,negro,JugadorNegro,JugadorBlanco,T,colocar,[],0).
-
-contrincante(negro,blanco).
-contrincante(blanco,negro).
-
-direccion(e).
-direccion(w).
-direccion(n).
-direccion(s).
-direccion(ne).
-direccion(se).
-direccion(nw).
-direccion(se).
-
-dibujarJugada(PosicionesConFichas,Visual,T) :-
-   convertirFormato(PosicionesConFichas,Fichas),
-   gr_dibujar_tablero(Visual,T,Fichas).
 
 % --------------------------
 % Loop principal
@@ -112,38 +382,7 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
     gr_mensaje(Visual,'No tiene movimientos disponibles, pasará el turno al siguiente jugador'),
     loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas).
 
-generarTodasLasPosiciones(0,Ac,Ac):- true.
-generarTodasLasPosiciones(DistMax,TodasLasPosiciones,Ac) :-
-  DistMax > 0,
-  concatenacion([(nw,DistMax),(n,DistMax),(ne,DistMax),(e,DistMax),(se,DistMax),(s,DistMax),(sw,DistMax),(w,DistMax)], Ac, NuevasPos),
-  !,
-  Siguiente is DistMax - 1,
-  generarTodasLasPosiciones(Siguiente,TodasLasPosiciones,NuevasPos).
-
-% Acá hay que controlar que para alguna
-% de mis fichas haya una posicion adyacente vacía
-hayMovimientosValidos(Turno, [(Turno,Dir, Dist)|_], PosicionesConFichas, PosicionesDelTablero) :-
-                                                                         pertenece2((X,Y),PosicionesDelTablero),
-                                                                         adyacentes(Dir, Dist, X, Y),
-                                                                         (pertenece((_,X,Y),PosicionesConFichas) -> false;
-                                                                                                                   true).
-                                                                                                                   
-hayMovimientosValidos(Turno, [(_,_,_)|PosicionesConFichasIter], PosicionesConFichas, PosicionesDelTablero) :-
-   hayMovimientosValidos(Turno,PosicionesConFichasIter, PosicionesConFichas, PosicionesDelTablero).
-
-esSalirOReiniciar(salir).
-esSalirOReiniciar(reiniciar).
-
-adyacentes(Dir, Dist, DirSel, DistSel) :-
-%Son adyacentes si tienen una diferencia de distancia 1 y la misma direcccion
-%O diferencia de distancia 0 y direcciones pegadas (arriba, abajo, izq, der)
-
-    Resta is Dist - DistSel,
-    abs(Resta,Abs),
-    ((Abs = 1, Dir = DirSel, medio(Dir));
-     (Abs = 0 ,(izquierda(Dir,DirSel); derecha(Dir,DirSel); arriba(Dir,DirSel); abajo(Dir,DirSel)))
-    ).
-
+%Obitene el primer click en la fase mover, este click selecciona una ficha la cual se moverá de posicion.
 primerClick(click(DirSel,DistSel), Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, PosicionesConFichas) :-
 %Primer click selecciona la pieza, segundo click la mueve.
 %Chequea que haya ficha en esa posición y que sea  de  ese jugador.
@@ -151,7 +390,7 @@ primerClick(click(DirSel,DistSel), Visual, Turno, JugadorNegro, JugadorBlanco, T
        gr_ficha(Visual, T, DirSel, DistSel, "seleccion"),
        gr_evento(Visual,E),
        evento(E, Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, PosicionesConFichas, DirSel, DistSel));
-    %Marco mal
+    %Marcó mal
        gr_mensaje(Visual,'Seleccionó  una posición incorrecta, vuelva a intentarlo.'),
        gr_evento(Visual,E),
        primerClick(E, Visual, Turno, JugadorNegro, JugadorBlanco, T, mover, PosicionesConFichas).
@@ -286,85 +525,9 @@ evento(reiniciar,Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFi
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-finDelJuego(_,[],Ac,Ac).
-finDelJuego(Turno,[(Turno,_,_)|Xs],Cant,Ac) :- Sum is Ac + 1,
-                                               finDelJuego(Turno,Xs,Cant,Sum),
-                                               !.
-finDelJuego(Turno,[(_,_,_)|Xs],Cant,Ac) :- finDelJuego(Turno,Xs,Cant,Ac).
-
-esJugadorNegro(negro).
-
-hayFicha(Dir,Dist,PosicionesConFichas) :- pertenece((_,Dir, Dist), PosicionesConFichas).
-
-% pertenece(?X,?L) ← X pertenece a la lista L
-pertenece((X,Y,Z),[(X,Y,Z)|_]).
-pertenece((X,Y,Z),[_|Ys]) :- pertenece((X,Y,Z),Ys).
-
-pertenece2((X,Y),[(X,Y)|_]).
-pertenece2((X,Y),[_|Ys]) :- pertenece2((X,Y),Ys).
-
-% largo(+L,?N) ← N es el largo de la lista L.
-largo([],0).
-largo([_|Xs],N):- largo(Xs,M),
-                  N is M+1.
-
-%%%%%% Predicados de navegacion por el tablero %%%%%%%
-
-%La segunda poscicion esta a la izquierda de la primera
-izquierda(s,sw).
-izquierda(se,s).
-izquierda(n,nw).
-izquierda(ne,n).
-
-dobleIzquierda(ne,nw).
-dobleIzquierda(se,sw).
-
-%La segunda posicion esta a la derecha de la primera
-derecha(n,ne).
-derecha(nw,n).
-derecha(s,se).
-derecha(sw,s).
-
-dobleDerecha(nw,ne).
-dobleDerecha(sw,se).
-
-%La segunda posicion esta arriba de la primera
-arriba(sw,w).
-arriba(w,nw).
-arriba(se,e).
-arriba(e,ne).
-
-dobleArriba(sw,nw).
-dobleArriba(se,ne).
-
-%La segunda posicion esta abajo de la primera
-abajo(nw,w).
-abajo(w,sw).
-abajo(ne,e).
-abajo(e,se).
-
-dobleAbajo(nw,sw).
-dobleAbajo(ne,se).
-
-medio(s).
-medio(n).
-medio(w).
-medio(e).
-
-% El concepto de arriba, abajo, izquierda y derecha
-% en las filas y columnas del medio es por la distancia
-% ademas pueden ser de largo variable
-
-masUno(Dist,M,Max) :- M is Dist+1, M =< Max.
-masDos(Dist,M,Max) :- M is Dist+2, M =< Max.
-menosUno(Dist,M) :- M is Dist-1, 1 =< M.
-menosDos(Dist,M) :- M is Dist-2, 1 =< M.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %%% Predicados para ver si hay molino %%%%
 
-%Lo usa el minimax
+%Lo usa el minimax tiene el parametro bool en false para no dibujar el molino
 hayMolino(Turno,Dir,Dist,PosicionesConFichas,T) :-  hayMolinoHorizontal(Dir,Dist,Turno,PosicionesConFichas,T,_,false);
                                                 hayMolinoVertical(Dir,Dist,Turno,PosicionesConFichas,T,_,false);
                                                 hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,_,false).
@@ -460,61 +623,6 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
                                                         (HayQueMarcar ->
                                                            marcarMolino(Ventana,T,[(Dir,Dist),(Dir,X),(Dir,Y)]);
                                                            true).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-mismoJugador(blanco,blanco,blanco).
-mismoJugador(negro,negro,negro).
-
-marcarMolino(_, _, []).
-marcarMolino(Ventana, T, [(Dir,Dist)|Xs]) :- gr_ficha(Ventana, T, Dir, Dist, "seleccion"),
-                                             marcarMolino(Ventana, T, Xs).
-
-actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados) :- Cant is (3*(T+1)-TurnosPasados),
-                                                                  sformat(Msg, 'Jugador ~w, fase colocar (restan colocar ~w fichas)', [Turno,Cant]),
-                                                                  gr_estado(Visual, Msg).
-
-actualizarMensajeInferior(Turno,mover,capturar,Visual) :- sformat(Msg, 'Jugador ~w, capturar', [Turno]), gr_estado(Visual, Msg).
-
-actualizarMensajeInferior(Turno,mover,Visual) :- sformat(Msg, 'Jugador ~w, mover', [Turno]), gr_estado(Visual, Msg).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-eliminarFicha(click(Dir,Dist),Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha) :-
-               posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) ->
-               (
-                 contrincante(Turno,OtroJugador),
-                 removerFicha(PosicionesConFichas,(OtroJugador,Dir,Dist),PosicionesSinEsaFicha),
-                 convertirFormato(PosicionesSinEsaFicha,Fichas),
-                 gr_dibujar_tablero(Visual,T,Fichas)
-               );
-                gr_mensaje(Visual,'La posición seleccionada no contiene una ficha de su rival.'),
-                gr_evento(Visual, E), %Espero por el siguiente click
-                eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha).
-                
-posicionOtroJugador(Dir,Dist,Turno,PosicionesConFichas) :-
-               contrincante(Turno,OtroJugador),
-               pertenece((OtroJugador,Dir,Dist),PosicionesConFichas).
-               
-% removerFicha(+L,?E,?LSinE) ← LSinE es la lista L sin ninguna ocurrencia del elemento E.
-removerFicha(L,E,LSinE) :- sin_elem_accu(L,E,[],LSinE).
-
-% sin_elem_accu(?L,?E,+Ac,?SinE) ← La lista SinE es la lista L sin E. Ac es el acumulador e inicialmente debe ser []
-sin_elem_accu([],_,Ac,Ac).
-sin_elem_accu([(Tipo,Dir,Dist)|T],(Tipo,Dir,Dist),Ac,SinE) :- sin_elem_accu(T,(Tipo,Dir,Dist),Ac,SinE),!.
-sin_elem_accu([(J,X,Y)|T],(Tipo,Dir,Dist),Ac,SinE) :- concatenacion(Ac,[(J,X,Y)],C),
-                                                   sin_elem_accu(T,(Tipo,Dir,Dist),C,SinE).
-                                  
-% concatenacion(?L1,?L2,?L) ← La lista L es la concatenación de L1 con L2.
-concatenacion([],X,X).
-concatenacion(X,[],X).
-concatenacion([X|Xs],L2,[X|L]) :- concatenacion(Xs,L2,L).
-
-convertirFormato([],[]).
-convertirFormato([(Tipo,Dir,Dist)|Xs],[ficha(Tipo,Dir,Dist)|Xs2]) :- convertirFormato(Xs,Xs2).
-
-getMyFichas([],_,[]).
-getMyFichas([(Turno,Dir,Dist)|Xs],Turno,[(Turno,Dir,Dist)|Ys]) :- getMyFichas(Xs,Turno,Ys),!.
-getMyFichas([(_,_,_)|Xs],Turno,L) :- getMyFichas(Xs,Turno,L).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MINIMAX %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -709,64 +817,10 @@ posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas, Fich
      )
   ).
        
-% pertenece(?X,?L) ← X pertenece a la lista L
-perteneceLista(X,[X|_]).
-perteneceLista(X,[_|Ys]) :- perteneceLista(X,Ys).
-
-% sin_elem(+L,?E,?LSinE) ← LSinE es la lista L sin ninguna ocurrencia del elemento E.
-remover_pos(L,E,LSinE) :- remover_pos_accu(L,E,[],LSinE).
-
-% remover_pos_accu(?L,?E,+Ac,?SinE) ← La lista SinE es la lista L sin E. Ac es el acumulador e inicialmente debe ser []
-remover_pos_accu([],_,Ac,Ac).
-remover_pos_accu([E|T],E,Ac,SinE) :- remover_pos_accu(T,E,Ac,SinE),!.
-remover_pos_accu([X|T],E,Ac,SinE) :- concatenacion(Ac,[X],C),
-                                     remover_pos_accu(T,E,C,SinE).
-
-% primero(?L,?X) ← X es el primer elemento de la lista L
-primero([X|_],X).
-
-cantFichas([],_,Ac,Ac).
-cantFichas([(Turno,_,_)|Xs],Turno,Cant,Ac) :-
-   Sig is Ac + 1,
-   cantFichas(Xs,Turno,Cant,Sig),
-   !.
-   
-cantFichas([(_,_,_)|Xs],Turno,Cant,Ac) :- cantFichas(Xs,Turno,Cant,Ac),!.
-
-% reversoConAccu(?L,+Ac,?Rev) ← La lista Rev es la lista L invertida. Ac es el acumulador e inicialmente debe ser []
-reversoConAccu([],Ac,Ac).
-reversoConAccu([H|T],Ac,Rev) :- reversoConAccu(T,[H|Ac],Rev).
-
-generarAdyacentes([],_,Ac,Ac).
-
-generarAdyacentes([(Dir,Dist)|RestoTablero], Tablero, ListaAdyacentes, Ac) :-
-  generarAdyacentesPosicion((Dir,Dist), Tablero, AdyacentesPos, []),
-  generarAdyacentes(RestoTablero, Tablero, ListaAdyacentes, [AdyacentesPos|Ac]).
-
-generarAdyacentesPosicion((_,_),[],Ac,Ac).
-
-generarAdyacentesPosicion((Dir,Dist), Tablero, ListaAdyacentes, Ac) :-
-   primero(Tablero,(X,Y)),
-   remover_pos(Tablero,(X,Y),NuevoTablero),
-   (adyacentes(Dir, Dist, X, Y) ->
-      generarAdyacentesPosicion((Dir,Dist), NuevoTablero, ListaAdyacentes, [(X,Y)|Ac]);
-      generarAdyacentesPosicion((Dir,Dist), NuevoTablero, ListaAdyacentes, Ac)
-   ).
-
-
-
-noEsVacia([_|_]).
-
-randomOrder([],Ac,Ac).
-
-randomOrder(L,ListaRandom,Ac) :-
-   random_select(X,L,ListaSinJugada),
-   randomOrder(ListaSinJugada,ListaRandom,[X|Ac]).
-
-%Primera versión) Diferencia entre mis fichas y las de mi oponente.
+%Diferencia entre mis fichas y las de mi oponente.
 %Importan los casi molinos (2 fichas que están a una  jugada de ser molino)
-%Importan más los de mi oponente, porq en su turno va a completar ese molino.
-%Acá no importan los molinos, porq los conté antes. En la diferencia de la cantidad de piezas.
+%Importan más los de mi oponente, porque en su turno va a completar ese molino.
+%Acá no importan los molinos, porque los conté antes. En la diferencia de la cantidad de piezas.
 heuristica(ListaPosConFichas, Turno, _, Valor, T) :-
    contrincante(Turno,OtroTurno),
    DistMax is T+1,

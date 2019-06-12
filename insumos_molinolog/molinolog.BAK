@@ -92,7 +92,7 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
          sleep(2),
          minimax((PosicionesConFichas,T),MejorJugada,Turno,mover),
          dibujarJugada(MejorJugada,Visual,T),
-         contrincante(Turno,SiguienteTurno),s
+         contrincante(Turno,SiguienteTurno),
          (finDelJuego(negro,MejorJugada,CantNegro,0), CantNegro > 2 ->
             (finDelJuego(blanco,MejorJugada,CantBlanco,0), CantBlanco > 2 ->
               loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,MejorJugada);
