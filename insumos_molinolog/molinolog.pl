@@ -816,23 +816,23 @@ posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas, Fich
        posibles_jugadas(Turno, (ListaPosConFichas,T),Jugadas,NuevoTablero,AcJugadas,FichasDelOtro, mover, Xs)
      )
   ).
-       
+
 %Diferencia entre mis fichas y las de mi oponente.
 %Importan los casi molinos (2 fichas que están a una  jugada de ser molino)
 %Importan más los de mi oponente, porque en su turno va a completar ese molino.
 %Acá no importan los molinos, porque los conté antes. En la diferencia de la cantidad de piezas.
 heuristica(ListaPosConFichas, Turno, _, Valor, T) :-
-   contrincante(Turno,OtroTurno),
-   DistMax is T+1,
-   generarTodasLasPosiciones(DistMax,Tablero, []),
-   
-   casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,0),
-   casiMolinos(Tablero,T,ListaPosConFichas,OtroTurno,CasiMolinosOtro,0),
-   %cantMolinos(T,ListaPosConFichas,ListaPosConFichas,Turno,MolinosMios,0),
-   cantFichas(ListaPosConFichas,Turno,Mias,0),
-   cantFichas(ListaPosConFichas,OtroTurno,DelOtro,0),
-   %Se ponderan las distintas situaciones
-   Valor is 4*(Mias - DelOtro) + 2*CasiMolinosMios - 3*CasiMolinosOtro.
+  contrincante(Turno,OtroTurno),
+  DistMax is T+1,
+  generarTodasLasPosiciones(DistMax,Tablero, []),
+
+  casiMolinos(Tablero,T,ListaPosConFichas,Turno,CasiMolinosMios,0),
+  casiMolinos(Tablero,T,ListaPosConFichas,OtroTurno,CasiMolinosOtro,0),
+  %cantMolinos(T,ListaPosConFichas,ListaPosConFichas,Turno,MolinosMios,0),
+  cantFichas(ListaPosConFichas,Turno,Mias,0),
+  cantFichas(ListaPosConFichas,OtroTurno,DelOtro,0),
+  %Se ponderan las distintas situaciones
+  Valor is 4*(DelOtro - Mias) + 2*CasiMolinosMios - 3*CasiMolinosOtro.
 
 %Se generan todas las posiciones del tablero, luego para cada posición se simula
 %que exista una ficha y se ve si hay molinos (en ese caso tengo un "casi molino")
