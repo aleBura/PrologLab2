@@ -320,22 +320,22 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
     actualizarMensajeInferior(Turno,colocar,T,Visual,TurnosPasados),
     (
      ((Turno = negro, JugadorNegro = humano); (Turno = blanco, JugadorBlanco = humano)) ->
-       (gr_evento(Visual,E),
-         evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
-       );
-       (
-         %Solo para que se vea mejor el juego
-         sleep(2),
-         minimax((PosicionesConFichas,T),MejorJugada,Turno,colocar,TurnosPasados),
-         dibujarJugada(MejorJugada,Visual,T),
-         (
-          (
-            esJugadorNegro(Turno),loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados)
-          );
+      (gr_evento(Visual,E),
+        evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
+      );
+      (
+        minimax((PosicionesConFichas,T),MejorJugada,Turno,colocar,TurnosPasados),
+        dibujarJugada(MejorJugada,Visual,T),
+        (
+          (esJugadorBlanco(Turno)) -> (
             TurnosPasadosMasUno is TurnosPasados + 1,
             loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasadosMasUno)
-         )
-       )
+          );
+          (
+            loop(Visual,OtroTurno,JugadorNegro,JugadorBlanco,T,colocar,MejorJugada,TurnosPasados)
+          )
+        )
+      )
     )
   );
 
@@ -479,29 +479,31 @@ evento(click(Dir,Dist), Visual, Turno, JugadorNegro, JugadorBlanco, T, colocar, 
 
         hayMolino(Dir,Dist,Turno,PosicionesConFichas,T,Visual) -> (
            % Click en la ficha que quiere sacar
-             gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
-             gr_evento(Visual, E), %Espero por el click
-             eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha),
-             %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
-             gr_ficha(Visual,T,Dir,Dist,Turno),
-             contrincante(Turno,SiguienteTurno),
-             cantFichas(PosicionesSinEsaFicha,SiguienteTurno,CantOtro,0),
-             (
-              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],CantOtro))
-              ;
-              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],CantOtro)
-             )
+            gr_mensaje(Visual,'Seleccione una ficha de su rival para eliminar.'),
+            gr_evento(Visual, E), %Espero por el click
+            eliminarFicha(E,Turno,Visual,PosicionesConFichas,T,PosicionesSinEsaFicha),
+            %La vuelvo a dibujar porque no estaba agregada cuando se redibujo el tablero.
+            gr_ficha(Visual,T,Dir,Dist,Turno),
+            contrincante(Turno,SiguienteTurno),
+            (esJugadorBlanco(Turno) -> (
+              TurnosPasadosMasUno is TurnosPasados + 1,
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],TurnosPasadosMasUno)
+            );
+            (
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesSinEsaFicha],TurnosPasados))
+            )
 
            );
            % Else no hay molino
            (
-             contrincante(Turno,SiguienteTurno),
-             cantFichas(PosicionesConFichas,SiguienteTurno,CantOtro,0),
+            contrincante(Turno,SiguienteTurno),
+            (esJugadorBlanco(Turno) -> (
+              TurnosPasadosMasUno is TurnosPasados + 1,
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],TurnosPasadosMasUno)
+            );
             (
-              (esJugadorNegro(Turno),loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],CantOtro))
-              ;
-              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],CantOtro)
-             )
+              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,colocar,[(Turno,Dir,Dist)|PosicionesConFichas],TurnosPasados))
+            )
            ).
 
 evento(salir,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados) :-
@@ -692,11 +694,11 @@ mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase
   comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor).
 
 mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth, TurnosPasados) :-
-  mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth, TurnosPasados),
   cambiar_max_min(MinMax, Opuesto),
   contrincante(Turno, Otro),
   SigDepth is Depth-1,
   minimax_step(Opuesto, (Jugada,T), Otro, _, BottomBestV, SigDepth, Fase, TurnosPasados),
+  mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth, TurnosPasados),
   comparar_jugadas(MinMax, Jugada, BottomBestV, ActualMejorJ, ActualMejorV, MejorJugada, MejorValor).
 
 cambiar_max_min(max,min).
