@@ -734,12 +734,12 @@ mejor_jugada(min, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, 
     % No puedo podar
     B is -BetaActualizado,
     A is -Alpha,
-    mejor_jugada(min, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, 0, TurnosPasados),
+    mejor_jugada(min, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, Depth, TurnosPasados),
     comparar_jugadas(min,Jugada,BottomBestV,MejorJugadaDemas,MejorValorDemas,MejorJugada,MejorValor)
   ;
     % Puedo podar
-    MejorJugada is MejorJugadaActual,
-    MejorValor is BetaActualizado
+    MejorJugada = MejorJugadaActual,
+    MejorValor = BetaActualizado
   ).
 
 mejor_jugada(max, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, Depth, TurnosPasados) :-
@@ -751,12 +751,12 @@ mejor_jugada(max, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, 
     % No puedo podar
     B is -Beta,
     A is -AlphaActualizado,
-    mejor_jugada(max, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, 0, TurnosPasados),
+    mejor_jugada(max, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, Depth, TurnosPasados),
     comparar_jugadas(max,Jugada,BottomBestV,MejorJugadaDemas,MejorValorDemas,MejorJugada,MejorValor)
   ;
     % Puedo podar
-    MejorJugada is MejorJugadaActual,
-    MejorValor is AlphaActualizado
+    MejorJugada = MejorJugadaActual,
+    MejorValor = AlphaActualizado
   ).
 
 cambiar_max_min(max,min).
