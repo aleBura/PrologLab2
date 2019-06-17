@@ -697,7 +697,7 @@ mejor_jugada(min, [], [], 9999, _, _, _, _, _, _, _, _).
 
 mejor_jugada(min, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, 0, TurnosPasados) :-
   heuristica(Jugada, Turno, Fase, Valor, T),
-  comparar_jugadas(min, Beta, MejorJugadaPrevia, Valor, Jugada, BetaActualizado, MejorJugadaActual),
+  comparar_jugadas(min, MejorJugadaPrevia, Beta, Jugada, Valor, MejorJugadaActual, BetaActualizado),
   (BetaActualizado > Alpha ->
     % No puedo podar
     B is -BetaActualizado,
@@ -712,7 +712,7 @@ mejor_jugada(min, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, 
 
 mejor_jugada(max, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, 0, TurnosPasados) :-
   heuristica(Jugada, Turno, Fase, Valor, T),
-  comparar_jugadas(max, Alpha, MejorJugadaPrevia, Valor, Jugada, AlphaActualizado, MejorJugadaActual),
+  comparar_jugadas(max, MejorJugadaPrevia, Alpha, Jugada, Valor, MejorJugadaActual, AlphaActualizado),
   (Beta > AlphaActualizado ->
     % No puedo podar
     B is -Beta,
@@ -729,7 +729,7 @@ mejor_jugada(min, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, 
   contrincante(Turno, Otro),
   SigDepth is Depth-1,
   minimax_step(max, (Jugada,T), Otro, Alpha, Beta, _, BottomBestV, SigDepth, Fase, TurnosPasados),
-  comparar_jugadas(min, Beta, MejorJugadaPrevia, BottomBestV, Jugada, BetaActualizado, MejorJugadaActual),
+  comparar_jugadas(min, MejorJugadaPrevia, Beta, Jugada, BottomBestV, MejorJugadaActual, BetaActualizado),
   (BetaActualizado > Alpha ->
     % No puedo podar
     B is -BetaActualizado,
@@ -746,7 +746,7 @@ mejor_jugada(max, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, 
   contrincante(Turno, Otro),
   SigDepth is Depth-1,
   minimax_step(min, (Jugada,T), Otro, Alpha, Beta, _, BottomBestV, SigDepth, Fase, TurnosPasados),
-  comparar_jugadas(max, Alpha, MejorJugadaPrevia, BottomBestV, Jugada, AlphaActualizado, MejorJugadaActual),
+  comparar_jugadas(max, MejorJugadaPrevia, Alpha, Jugada, BottomBestV, MejorJugadaActual, AlphaActualizado),
   (Beta > AlphaActualizado ->
     % No puedo podar
     B is -Beta,
