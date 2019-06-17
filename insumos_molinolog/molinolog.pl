@@ -324,6 +324,8 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,Turno
         evento(E,Visual,Turno,JugadorNegro,JugadorBlanco,T,colocar,PosicionesConFichas,TurnosPasados)
       );
       (
+        %Solo para que se vea mejor el juego
+        sleep(1),
         minimax((PosicionesConFichas,T),MejorJugada,Turno,colocar,TurnosPasados),
         dibujarJugada(MejorJugada,Visual,T),
         (
@@ -363,24 +365,24 @@ loop(Visual,Turno,JugadorNegro,JugadorBlanco,T,mover,PosicionesConFichas) :-
         %Cuando alguno de los 2 queda con 2 fichas  termina el juego
     );
     (
-         %Solo para que se vea mejor el juego
-         sleep(2),
-         minimax((PosicionesConFichas,T),MejorJugada,Turno,mover),
-         dibujarJugada(MejorJugada,Visual,T),
-         contrincante(Turno,SiguienteTurno),
-         (finDelJuego(negro,MejorJugada,CantNegro,0), CantNegro > 2 ->
-            (finDelJuego(blanco,MejorJugada,CantBlanco,0), CantBlanco > 2 ->
-              loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,MejorJugada);
-              %perdio el blanco
-              gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
-                 iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
-                 true
-            );
-            %perdio el negro
-            gr_opciones(Visual, 'Fin del juego, jugador blanco ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
-               iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
-               true
-         )
+      %Solo para que se vea mejor el juego
+      sleep(1),
+      minimax((PosicionesConFichas,T),MejorJugada,Turno,mover),
+      dibujarJugada(MejorJugada,Visual,T),
+      contrincante(Turno,SiguienteTurno),
+      (finDelJuego(negro,MejorJugada,CantNegro,0), CantNegro > 2 ->
+        (finDelJuego(blanco,MejorJugada,CantBlanco,0), CantBlanco > 2 ->
+          loop(Visual,SiguienteTurno,JugadorNegro,JugadorBlanco,T,mover,MejorJugada);
+          %perdio el blanco
+          gr_opciones(Visual, 'Fin del juego, jugador negro ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+              iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+              true
+        );
+        %perdio el negro
+        gr_opciones(Visual, 'Fin del juego, jugador blanco ganador ¿Desea volver a jugar?', ['Sí', 'No'], 'Sí') ->
+            iniciar_juego(Visual,JugadorNegro,JugadorBlanco,T);
+            true
+        )
     ))
   );
     contrincante(Turno,SiguienteTurno),
@@ -635,18 +637,24 @@ hayMolinoMedio(Dir,Dist,Turno,PosicionesConFichas,T,Ventana, HayQueMarcar):-
 
 % El predicado minimax_depth/1 define la recursión máxima a utilizar en el algoritmo minimax
 minimax_depth(3).
+alpha_inicial(-9999).
+beta_inicial(9999).
 
 minimax((ListaPosConFichas,T), MejorJugada, Turno, mover) :-
    minimax_depth(MaxDepth),
-   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth, mover, _),
+   alpha_inicial(Alpha),
+   beta_inicial(Beta),
+   minimax_step(max, (ListaPosConFichas,T), Turno, Alpha, Beta, MejorJugada, _, MaxDepth, mover, _),
    !.
 
 minimax((ListaPosConFichas,T), MejorJugada, Turno, colocar, TurnosPasados) :-
    minimax_depth(MaxDepth),
-   minimax_step(max, (ListaPosConFichas,T), Turno, MejorJugada, _, MaxDepth, colocar, TurnosPasados),
+   alpha_inicial(Alpha),
+   beta_inicial(Beta),
+   minimax_step(max, (ListaPosConFichas,T), Turno, Alpha, Beta, MejorJugada, _, MaxDepth, colocar, TurnosPasados),
    !.
 
-minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, mover, _) :-
+minimax_step(MinMax, (ListaPosConFichas,T), Turno, Alpha, Beta, MejorJugada, MejorValor, Depth, mover, _) :-
    DistMax is T + 1,
 
    %Si es un tablero final o si alcancé la máxima profundidad
@@ -665,13 +673,12 @@ minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Dept
      posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro, mover, RevListaAdyacentes),
      %Para que no eliga siempre la misma si hay varias del mismo valor
      randomOrder(Jugadas, RandomOrderJugadas, []),
-     mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, mover, T, Depth, 0)
-
+     mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, Alpha, Beta, [], mover, T, Depth, 0)
    );
      false
    ).
 
-minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Depth, colocar, TurnosPasados) :-
+minimax_step(MinMax, (ListaPosConFichas,T), Turno, Alpha, Beta, MejorJugada, MejorValor, Depth, colocar, TurnosPasados) :-
   %Si es un tablero final o si alcancé la máxima profundidad
   ((DistMax is T + 1,MaxFichas is 3*(T+1),(TurnosPasados \= MaxFichas; esJugadorBlanco(Turno)), Depth >= 0) -> (
     generarTodasLasPosiciones(DistMax,Tablero, []),
@@ -680,26 +687,77 @@ minimax_step(MinMax, (ListaPosConFichas,T), Turno, MejorJugada, MejorValor, Dept
     posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, [], FichasDelOtro, colocar),
     %Para que no eliga siempre la misma si hay varias del mismo valor
     randomOrder(Jugadas, RandomOrderJugadas, []),
-    mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, colocar, T, Depth, TurnosPasados)
+    mejor_jugada(MinMax, RandomOrderJugadas, MejorJugada, MejorValor, Turno, Alpha, Beta, [], colocar, T, Depth, TurnosPasados)
   );
     false
   ).
 
-mejor_jugada(max, [], [], -9999, _, _, _, _, _).
-mejor_jugada(min, [], [], 9999, _, _, _, _, _).
+mejor_jugada(max, [], [], -9999, _, _, _, _, _, _, _, _).
+mejor_jugada(min, [], [], 9999, _, _, _, _, _, _, _, _).
 
-mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, 0, TurnosPasados) :-
+mejor_jugada(min, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, 0, TurnosPasados) :-
   heuristica(Jugada, Turno, Fase, Valor, T),
-  mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, 0, TurnosPasados),
-  comparar_jugadas(MinMax,Jugada,Valor,ActualMejorJ,ActualMejorV,MejorJugada,MejorValor).
+  comparar_jugadas(min, Beta, MejorJugadaPrevia, Valor, Jugada, BetaActualizado, MejorJugadaActual),
+  (BetaActualizado > Alpha ->
+    % No puedo podar
+    B is -BetaActualizado,
+    A is -Alpha,
+    mejor_jugada(min, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, 0, TurnosPasados),
+    comparar_jugadas(min,Jugada,Valor,MejorJugadaDemas,MejorValorDemas,MejorJugada,MejorValor)
+  ;
+    % Puedo podar
+    MejorJugada = MejorJugadaActual,
+    MejorValor = BetaActualizado
+  ).
 
-mejor_jugada(MinMax, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Fase, T, Depth, TurnosPasados) :-
-  cambiar_max_min(MinMax, Opuesto),
+mejor_jugada(max, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, 0, TurnosPasados) :-
+  heuristica(Jugada, Turno, Fase, Valor, T),
+  comparar_jugadas(max, Alpha, MejorJugadaPrevia, Valor, Jugada, AlphaActualizado, MejorJugadaActual),
+  (Beta > AlphaActualizado ->
+    % No puedo podar
+    B is -Beta,
+    A is -AlphaActualizado,
+    mejor_jugada(max, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, 0, TurnosPasados),
+    comparar_jugadas(max,Jugada,Valor,MejorJugadaDemas,MejorValorDemas,MejorJugada,MejorValor)
+  ;
+    % Puedo podar
+    MejorJugada = MejorJugadaActual,
+    MejorValor = AlphaActualizado
+  ).
+
+mejor_jugada(min, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, Depth, TurnosPasados) :-
   contrincante(Turno, Otro),
   SigDepth is Depth-1,
-  minimax_step(Opuesto, (Jugada,T), Otro, _, BottomBestV, SigDepth, Fase, TurnosPasados),
-  mejor_jugada(MinMax, OtrasJugadas, ActualMejorJ, ActualMejorV, Turno, Fase, T, Depth, TurnosPasados),
-  comparar_jugadas(MinMax, Jugada, BottomBestV, ActualMejorJ, ActualMejorV, MejorJugada, MejorValor).
+  minimax_step(max, (Jugada,T), Otro, Alpha, Beta, _, BottomBestV, SigDepth, Fase, TurnosPasados),
+  comparar_jugadas(min, Beta, MejorJugadaPrevia, BottomBestV, Jugada, BetaActualizado, MejorJugadaActual),
+  (BetaActualizado > Alpha ->
+    % No puedo podar
+    B is -BetaActualizado,
+    A is -Alpha,
+    mejor_jugada(min, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, 0, TurnosPasados),
+    comparar_jugadas(min,Jugada,BottomBestV,MejorJugadaDemas,MejorValorDemas,MejorJugada,MejorValor)
+  ;
+    % Puedo podar
+    MejorJugada is MejorJugadaActual,
+    MejorValor is BetaActualizado
+  ).
+
+mejor_jugada(max, [Jugada|OtrasJugadas], MejorJugada, MejorValor, Turno, Alpha, Beta, MejorJugadaPrevia, Fase, T, Depth, TurnosPasados) :-
+  contrincante(Turno, Otro),
+  SigDepth is Depth-1,
+  minimax_step(min, (Jugada,T), Otro, Alpha, Beta, _, BottomBestV, SigDepth, Fase, TurnosPasados),
+  comparar_jugadas(max, Alpha, MejorJugadaPrevia, BottomBestV, Jugada, AlphaActualizado, MejorJugadaActual),
+  (Beta > AlphaActualizado ->
+    % No puedo podar
+    B is -Beta,
+    A is -AlphaActualizado,
+    mejor_jugada(max, OtrasJugadas, MejorJugadaDemas, MejorValorDemas, Turno, B, A, MejorJugadaPrevia, Fase, T, 0, TurnosPasados),
+    comparar_jugadas(max,Jugada,BottomBestV,MejorJugadaDemas,MejorValorDemas,MejorJugada,MejorValor)
+  ;
+    % Puedo podar
+    MejorJugada is MejorJugadaActual,
+    MejorValor is AlphaActualizado
+  ).
 
 cambiar_max_min(max,min).
 cambiar_max_min(min,max).
@@ -713,7 +771,7 @@ posibles_jugadas(_,_,Jugadas,[],Jugadas,_,_).
 
 %Fichas del otro se usa para llevar la cuenta de las fichas que le quedan al otro por si hay molino
 posibles_jugadas(Turno, (ListaPosConFichas,T), Jugadas, Tablero, AcJugadas, FichasDelOtro, colocar) :-
-    
+
   %Se expande para todos los posibles lugares donde puede colocar una ficha
   %Es una posicion del tablero
   primero(Tablero,(Dir,Dist)),
